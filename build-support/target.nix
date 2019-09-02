@@ -100,7 +100,7 @@ in {
 
     std = lib.findInput drv.buildInputs std;
 
-    dontUnpack = true;
+    unpackPhase = "true";
     installPhase = ''
       mkdir -p $out/nix-support
       for dir in $std; do
@@ -127,7 +127,7 @@ in {
     rustcTarget = drv.rustc.rust.target.target;
     sysroot = lib.optional (sysroot != null) (lib.findInput drv.depsTargetTarget sysroot);
 
-    dontUnpack = true;
+    unpackPhase = "true";
     installPhase = assert stdenvNoCC.hostPlatform.isLinux; ''
       if [[ -n $sysroot ]]; then
         extraRustcArgs=(
@@ -175,7 +175,7 @@ in {
     rustc = lib.findInput drv.propagatedBuildInputs rustc;
     cargo = lib.findInput drv.buildInputs cargo;
 
-    dontUnpack = true;
+    unpackPhase = "true";
     installPhase = ''
       mkdir -p $out/bin
       makeWrapper $cargo/bin/cargo $out/bin/cargo --argv0 '$0' \
