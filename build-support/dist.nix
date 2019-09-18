@@ -28,19 +28,27 @@ in {
     else throw "not a real-world case";
 
   distFormat = "xz";
-} // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
-  manifest_v2_url = { lib }: with lib;
-    setFunctionArgs (args: (self.manifest_v1_url args) + ".toml") (functionArgs self.manifest_v1_url);
 
-  getFetchUrl = { fetchurl }: srcInfo:
-    # TODO: ideally want to use pkgs.fetchurl here but don't like how it calls out to curl...
-    (import <nix/fetchurl.nix>) (if self.distFormat == "xz" && srcInfo ? xz_url then {
+  getFetchUrl = srcInfo:
+    self.fetchurl (if self.distFormat == "xz" && srcInfo ? xz_url then {
       url = srcInfo.xz_url;
       sha256 = srcInfo.xz_hash;
     } else {
       url = srcInfo.url;
       sha256 = srcInfo.hash;
     });
+
+  manifestFile = { url, sha256 ? null }:
+    if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
+
+} // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
+  manifest_v2_url = { lib }: with lib;
+    setFunctionArgs (args: (self.manifest_v1_url args) + ".toml") (functionArgs self.manifest_v1_url);
+
+  # TODO: ideally we want to use pkgs.fetchurl here but don't like how it calls out to curl... override this if you need to?
+  fetchurl = { fetchurl }: let
+    nix-fetchurl = builtins.tryEval (import <nix/fetchurl.nix>);
+  in if nix-fetchurl.success then nix-fetchurl.value else fetchurl;
 
   getPackageTarget = { stdenvNoCC, stdenv, lib, autoPatchelfHook }: { target, buildInputs }: with lib; let
     extensions = filterAttrs (_: v: v.embedded && v.available) target.extensions;
@@ -238,17 +246,4 @@ in {
     targets = target; # targets = { target1 = { packageName = <drv>; package2 = <drv>; }; "*" = { packageName = ... }; }
     pkgs = pkgDerivations; # pkgs = { packageName = { target1 = <drv>; "*" = <drv>; etc }; }
   };
-
-  /*fromManifest = { lib }: { url, sha256 ? null }: with lib;
-    rustLib.fromManifestFile (rustLib.manifestFile { inherit sha256 url; });*/
-
-  manifestFile = { fetchurl }: { url, sha256 ? null }:
-    if sha256 == null then builtins.fetchurl url else fetchurl { inherit sha256 url; };
-
-  /*rustChannelOf = { lib }: with lib; let
-    fn = { sha256 ? null, ... } @ manifest_args: rustLib.fromManifest {
-      inherit sha256;
-      url = rustLib.manifest_v2_url manifest_args;
-    };
-  in setFunctionArgs fn (functionArgs rustLib.manifest_v2_url // functionArgs fn);*/
 }
