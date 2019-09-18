@@ -1,9 +1,13 @@
-self: super: with super.lib; let
+let overlay = self: super: with super.lib; let
   lib = super.lib.extend (import ./lib);
   rustChannel = lib.makeOrExtend super "rustChannel" (rself: rsuper: {
-    lib = lib.makeOrExtend rsuper "lib" (lself: lsuper:
-      import ./build-support { self = lself; super = lsuper; buildSelf = self.rustChannel.lib; pkgs = self; inherit lib; }
-    );
+    lib = lib.makeOrExtend rsuper "lib" (lself: lsuper: import ./build-support {
+      self = lself; super = lsuper;
+      buildSelf = (self.buildPackages.rustChannel or (self.buildPackages.extend overlay).rustChannel).lib;
+      targetSelf = (self.targetPackages.rustChannel or (self.targetPackages.extend overlay).rustChannel).lib;
+      pkgs = self;
+      inherit lib;
+    });
     pkgs = self;
 
     distChannel = rself.lib.distChannel.override;
@@ -48,4 +52,4 @@ in {
         rself.manifest.targets.${target}.rust-std
       ) targets;
     });
-}
+}; in overlay

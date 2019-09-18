@@ -135,8 +135,8 @@ in {
         )
       fi
       extraRustcArgs+=(
-        --run '[[ -z $RUSTC_SYSROOT ]] || extraFlagsArray+=(--sysroot $RUSTC_SYSROOT)'
-        --run '[[ -z $RUSTC_TARGET ]] || extraFlagsArray+=(--target $RUSTC_TARGET)'
+        --run '[[ -z $RUSTC_SYSROOT || $* = *--sysroot* ]] || extraFlagsArray+=(--sysroot $RUSTC_SYSROOT)'
+        --run '[[ -z $RUSTC_TARGET || $* = *--target* ]] || extraFlagsArray+=(--target $RUSTC_TARGET)'
         --run '[[ -z $RUSTC_FLAGS ]] || extraFlagsArray+=($RUSTC_FLAGS)'
       )
 
@@ -194,6 +194,37 @@ in {
     '';
   } // builtins.removeAttrs args [ "rustc" "cargo" "cargoEnv" ]));
 
+  # NOTE: supports lldb too despite the name. to use with gdbgui, just use this as its gdb binary
+  wrapGdb = { stdenvNoCC, makeWrapper, gdb }: { rustc-unwrapped }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "${gdb.pname or (builtins.parseDrvName gdb.name).name}-rust";
+    version = gdb.version or (builtins.parseDrvName gdb.name).version;
+
+    nativeBuildInputs = [ makeWrapper ];
+    buildInputs = [ gdb rustc-unwrapped ];
+    gdb = lib.findInput drv.buildInputs gdb;
+    rustc = lib.findInput drv.buildInputs rustc-unwrapped;
+
+    buildCommand = ''
+      mkdir -p $out/rustlib/etc/
+      cp $rustc/lib/rustlib/etc/*.py $out/rustlib/etc/
+      rustcGdb=$out/rustlib/etc
+
+      mkdir -p $out/bin
+      for g in $gdb/bin/*gdb; do
+        makeWrapper $g $out/bin/$(basename $g) \
+          --prefix PYTHONPATH : $rustcGdb \
+          --run "extraFlagsArray+=(--directory=$rustcGdb -iex 'add-auto-load-safe-path $rustcGdb')"
+      done
+
+      for g in $gdb/bin/*lldb; do
+        makeWrapper $g $out/bin/$(basename $g) \
+          --run "extraFlagsArray+=(--one-line-before-file 'command script import $rustcGdb/lldb_rust_formatters.py')" \
+          --run "extraFlagsArray+=(--one-line-before-file 'type summary add --no-value --python-function lldb_rust_formatters.print_val -x \".*\" --category Rust')" \
+          --run "extraFlagsArray+=(--one-line-before-file 'type category enable Rust')"
+      done
+    '';
+  });
+
   wrapTargetBin = { stdenvNoCC }: { target, inner }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${inner.pname}-wrapped";
     inherit (inner) version;
@@ -207,6 +238,55 @@ in {
       mkdir -p $out/bin
       [[ ! -e $inner/bin ]] || ln -s $inner/bin/* $out/bin/
       [[ ! -e $inner/lib/rustlib/$triple/bin ]] || ln -s $inner/lib/rustlib/$triple/bin/* $out/bin/
+    '';
+  });
+
+  wrapRustSrc = { stdenvNoCC }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "${rust-src.pname}-wrapped";
+    inherit (rust-src) version;
+
+    buildInputs = [ rust-src ];
+
+    rustcSrc = lib.findInput drv.buildInputs rust-src;
+
+    buildCommand = ''
+      ln -s $rustcSrc/lib/rustlib/src/rust/src $out
+    '';
+  });
+
+  wrapRlsSysroot = { stdenvNoCC }: { rust-sysroot, rust-src, rust-analysis }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "rls-sysroot";
+    inherit (rust-src) version;
+
+    buildInputs = [ rust-sysroot rust-src rust-analysis ];
+
+    rustcSrc = lib.findInput drv.buildInputs rust-src;
+    rustSysroot = lib.findInput drv.buildInputs rust-sysroot;
+    rustAnalysis = lib.findInput drv.buildInputs rust-analysis;
+
+    buildCommand = ''
+      mkdir -p $out/lib/rustlib/
+      ln -s $rustcSrc/lib/rustlib/src $out/lib/rustlib/
+      cp --no-preserve=mode -sRLt $out/ $rustSysroot/lib $rustAnalysis/lib
+    '';
+  });
+
+  wrapRls = { stdenvNoCC, makeWrapper }: { rls, rls-sysroot, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "rls-wrapped";
+    inherit (rls) version;
+
+    nativeBuildInputs = [ makeWrapper ];
+    buildInputs = [ rls rls-sysroot rustc ];
+
+    rls = lib.findInput drv.buildInputs rls;
+    rlsSysroot = lib.findInput drv.buildInputs rls-sysroot;
+    rustc = lib.findInput drv.buildInputs rustc;
+
+    buildCommand = ''
+      mkdir -p $out/bin
+      makeWrapper $rls/bin/rls $out/bin/rls \
+        --set-default RUSTC "$rustc/bin/rustc" \
+        --set-default SYSROOT "$rlsSysroot"
     '';
   });
 
@@ -228,12 +308,36 @@ in {
     '';
   });
 
-  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, cacert, git, fetchcargo }: { cargo, rustc, rust-src }: makeRustPlatform {
+  wrapMiri = { stdenvNoCC, makeWrapper, xargo }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "${miri.pname}-wrapped";
+    inherit (miri) version;
+
+    buildInputs = [ miri rust-src cargo rustc xargo makeWrapper ];
+
+    miri = lib.findInput drv.buildInputs miri;
+    rustcSrc = lib.findInput drv.buildInputs rust-src;
+    rustc = lib.findInput drv.buildInputs rustc;
+    cargo = lib.findInput drv.buildInputs cargo;
+    xargo = lib.findInput drv.buildInputs xargo;
+
+    buildCommand = ''
+      mkdir -p $out/bin
+      makeWrapper $miri/bin/cargo-miri $out/bin/cargo-miri \
+        --set-default XARGO_RUST_SRC "$rustcSrc" \
+        --set-default XARGO "$xargo/bin/xargo" \
+        --set-default RUSTC "$rustc/bin/rustc" \
+        --set-default CARGO "$cargo/bin/cargo" \
+        --set-default MIRI_SKIP_SYSROOT_CHECK 1
+    '';
+  });
+
+  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo }: { cargo, rustc, rust-src }: makeRustPlatform {
     inherit cargo rustc;
   } // {
     rustcSrc = rust-src;
     buildRustPackage = self.buildRustPackage.override {
-      inherit path lib stdenv cacert git fetchcargo rustc cargo;
+      inherit path lib stdenv fetchcargo rustc cargo;
+      inherit (buildPackages) cacert git;
     };
   };
 }

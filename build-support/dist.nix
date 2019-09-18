@@ -33,7 +33,8 @@ in {
     setFunctionArgs (args: (self.manifest_v1_url args) + ".toml") (functionArgs self.manifest_v1_url);
 
   getFetchUrl = { fetchurl }: srcInfo:
-    fetchurl (if self.distFormat == "xz" && srcInfo ? xz_url then {
+    # TODO: ideally want to use pkgs.fetchurl here but don't like how it calls out to curl...
+    (import <nix/fetchurl.nix>) (if self.distFormat == "xz" && srcInfo ? xz_url then {
       url = srcInfo.xz_url;
       sha256 = srcInfo.xz_hash;
     } else {
@@ -50,7 +51,7 @@ in {
   in mkDerivation {
     inherit (target) version;
     pname = target.name;
-    name = "${target.name}-bin-${target.version}";
+    name = if target.version == null then "${target.name}-bin" else "${target.name}-bin-${target.version}";
 
     src = self.getFetchUrl target;
 
@@ -172,25 +173,29 @@ in {
     '';
   };
 
+  manifestDerivationsFor = { lib }: with lib; { manifest, pkgDescriptions }: let
+    pkgDerivations = mapAttrs (_: getPackageTargets) pkgDescriptions;
+    getPackageTargets = pkg: builtins.mapAttrs (_: target: self.getPackageTarget {
+      inherit target;
+      buildInputs = map (dep: pkgDerivations.${dep}.${target.target}) target.dependencies;
+    }) pkg.target;
+    pkgRenames = pkgDerivations // mapAttrs (_: { to }: pkgDerivations.${to}) manifest.renames;
+  in pkgRenames;
+
   # The packages available usually are:
   #   cargo, rust-analysis, rust-docs, rust-src, rust-std, rustc, and
   #   rust, which aggregates them in one package.
-  manifestTargets = { lib, buildPlatform, hostPlatform, targetPlatform }: with lib; manifest: let
-    pkgs = fromTOML (builtins.readFile manifest);
-    pkg' = mapAttrs (pname: pkg: pkg // {
+  manifestTargets = { lib }: with lib; manifestPath: let
+    manifest = fromTOML (builtins.readFile manifestPath);
+    pkgDescriptions = mapAttrs (pname: pkg: pkg // {
       target = mapAttrs (annotateTarget pname pkg) pkg.target;
-    }) pkgs.pkg;
-    pkg = mapAttrs (_: getPackageTargets) pkg';
-    getPackageTargets = pkg'': builtins.mapAttrs (_: target: self.getPackageTarget {
-      inherit target;
-      buildInputs = map (dep: pkg.${dep}.${target.target}) target.dependencies;
-    }) pkg''.target;
-    pkgRenames = pkg // mapAttrs (_: { to }: pkg.${to}) pkgs.renames;
-    targets = concatLists (mapAttrsToList packageTargets pkgRenames);
+    }) manifest.pkg;
+    pkgDerivations = self.manifestDerivationsFor { inherit manifest pkgDescriptions; };
+    targets = concatLists (mapAttrsToList packageTargets pkgDerivations);
     #pkgVersion = self.lib.replaceStrings [" " "(" ")"] ["-" "" ""];
     pkgVersion = version: let
       version' = builtins.match "([^ ]*) [(]([^ ]*) ([^ ]*)[)]" version;
-    in "${elemAt version' 0}-${elemAt version' 2}-${elemAt version' 1}";
+    in if version == "" then null else "${elemAt version' 0}-${elemAt version' 2}-${elemAt version' 1}";
     disambiguatePkg = pname: target: {
       rust-std = "rust-std-${target}";
       rust-analysis = "rust-analysis-${target}";
@@ -203,7 +208,7 @@ in {
       components = pkgRefAttrs (map (ext: annotateComponent (pkgRef ext)) target.components or []);
       extensions = pkgRefAttrs (map (ext: annotateExtension targetName (pkgRef ext)) target.extensions or []);
       dependencies =
-        optional (pname == "llvm-tools-preview") "rustc";
+        optional (any (p: p == pname) ["llvm-tools-preview" "miri-preview" "clippy-preview" "rls-preview"]) "rustc";
     };
     annotateComponent = comp: comp // {
       output = comp.name;
@@ -213,7 +218,7 @@ in {
     };
     pkgRefAttrs = pkgs: listToAttrs (map (pkg: nameValuePair pkg.name pkg) pkgs);
     pkgRef = { pkg, target }: let
-      pkgRef = pkg'.${pkg}.target;
+      pkgRef = pkgDescriptions.${pkg}.target;
     in pkgRef.${target} or pkgRef."*";
     packageTargets = pname: targets: mapAttrsToList (target: drv: {
       ${target}.${pname} = drv;
@@ -228,12 +233,9 @@ in {
       // target."*" or {});
   in {
     inherit targetForPlatform;
-    targets = target;
-    pkgs = pkg;
-
-    host = targetForPlatform hostPlatform;
-    target = targetForPlatform targetPlatform; # TODO: filter target/build to only contain cross packages? (rust-std)
-    build = targetForPlatform buildPlatform;
+    # the below are the inverse of each other, indexed by either target name or package name:
+    targets = target; # targets = { target1 = { packageName = <drv>; package2 = <drv>; }; "*" = { packageName = ... }; }
+    pkgs = pkgDerivations; # pkgs = { packageName = { target1 = <drv>; "*" = <drv>; etc }; }
   };
 
   /*fromManifest = { lib }: { url, sha256 ? null }: with lib;

@@ -1,6 +1,6 @@
 { path, lib, rustChannel, stdenv, cacert, git, cargo, rustc, fetchcargo }: {
   name ? "${args.pname}-${args.version}"
-, cargoSha256 ? stdenv.lib.fakeSha256
+, cargoSha256 ? lib.fakeSha256
 , src ? null
 , srcs ? null
 , cargoPatches ? []
@@ -29,7 +29,7 @@
     '' else ''
       cargoDepsCopy="$sourceRoot/$cargoVendorDir"
     '';
-in lib.drvRec (drv: stdenv.mkDerivation (stdenv.lib.recursiveUpdate args {
+in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
   nativeBuildInputs = [ cargoDeps cargo rustc git cacert ] ++ nativeBuildInputs;
   inherit buildInputs;
@@ -44,7 +44,7 @@ in lib.drvRec (drv: stdenv.mkDerivation (stdenv.lib.recursiveUpdate args {
 
   inherit cargoDepsHook setupVendorDir;
   #postUnpackHooks =
-  #  stdenv.lib.optional (cargoDepsHook != "") "cargoDepsHook"
+  #  lib.optional (cargoDepsHook != "") "cargoDepsHook"
   #  ++ [ "setupVendorDir" ];
   postUnpack = ''
     eval "$cargoDepsHook"
@@ -90,7 +90,7 @@ in lib.drvRec (drv: stdenv.mkDerivation (stdenv.lib.recursiveUpdate args {
     cargo build \
       --frozen --verbose \
       $cargoBuildFlags \
-      ${stdenv.lib.optionalString (buildType != "debug") "--${buildType}"}
+      ${lib.optionalString (buildType != "debug") "--${buildType}"}
 
     runHook postBuild
   '';
@@ -124,6 +124,6 @@ in lib.drvRec (drv: stdenv.mkDerivation (stdenv.lib.recursiveUpdate args {
   '';
   passthru = {
     inherit (drv) cargoDeps;
-    inherit rustChannel;
+    #inherit rustChannel;
   } // args.passthru or { };
 }))

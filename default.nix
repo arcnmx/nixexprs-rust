@@ -1,2 +1,2 @@
 { pkgs ? import <nixpkgs> { } }:
-pkgs.rustChannel or (pkgs.extend (import ./overlay.nix)).rustChannel
+(import ./pkgs.nix { inherit pkgs; }).rustChannel
