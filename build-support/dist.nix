@@ -57,6 +57,7 @@ in {
 
     meta = {
       broken = !(target.available or true);
+      platforms = stdenvNoCC.lib.platforms.all;
     };
 
     passthru = {

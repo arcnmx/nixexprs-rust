@@ -5,5 +5,4 @@
 } // import ./dist.nix args
 // import ./target.nix args
 // import ./channel.nix args
-// import ./crates.nix args
 // import ./shell.nix args

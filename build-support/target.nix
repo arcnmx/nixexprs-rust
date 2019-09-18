@@ -116,7 +116,7 @@ in {
 
   wrapRustc = { stdenvNoCC, makeWrapper }: { rustc, sysroot ? null, ... }@args: lib.drvRec (drv: stdenvNoCC.mkDerivation ({
     pname = "rustc-wrapped";
-    inherit (rustc) version;
+    inherit (rustc) version meta;
 
     preferLocalBuild = true;
     nativeBuildInputs = [ makeWrapper ];
@@ -165,7 +165,7 @@ in {
 
   wrapCargo = { stdenvNoCC, makeWrapper }: { rustc, cargo, cargoEnv ? { }, ... }@args: lib.drvRec (drv: stdenvNoCC.mkDerivation ({
     pname = "cargo-wrapped";
-    inherit (cargo) version;
+    inherit (cargo) version meta;
 
     preferLocalBuild = true;
     nativeBuildInputs = [ makeWrapper ];
@@ -198,6 +198,7 @@ in {
   wrapGdb = { stdenvNoCC, makeWrapper, gdb }: { rustc-unwrapped }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${gdb.pname or (builtins.parseDrvName gdb.name).name}-rust";
     version = gdb.version or (builtins.parseDrvName gdb.name).version;
+    inherit (gdb) meta;
 
     nativeBuildInputs = [ makeWrapper ];
     buildInputs = [ gdb rustc-unwrapped ];
@@ -227,7 +228,7 @@ in {
 
   wrapTargetBin = { stdenvNoCC }: { target, inner }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${inner.pname}-wrapped";
-    inherit (inner) version;
+    inherit (inner) version meta;
 
     buildInputs = [ inner ];
 
@@ -256,7 +257,7 @@ in {
 
   wrapRlsSysroot = { stdenvNoCC }: { rust-sysroot, rust-src, rust-analysis }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rls-sysroot";
-    inherit (rust-src) version;
+    inherit (rust-src) version meta;
 
     buildInputs = [ rust-sysroot rust-src rust-analysis ];
 
@@ -292,7 +293,7 @@ in {
 
   wrapLlvmBintools = { stdenvNoCC }: { inner }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${inner.pname}-wrapped";
-    inherit (inner) version;
+    inherit (inner) version meta;
 
     buildInputs = [ inner ];
 
@@ -310,7 +311,7 @@ in {
 
   wrapMiri = { stdenvNoCC, makeWrapper, xargo }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${miri.pname}-wrapped";
-    inherit (miri) version;
+    inherit (miri) version meta;
 
     buildInputs = [ miri rust-src cargo rustc xargo makeWrapper ];
 

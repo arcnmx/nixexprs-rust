@@ -9,8 +9,13 @@
     };
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, buildRustCrate, rlib }: cself: {
-      inherit manifestFile;
+      inherit manifestFile channel date;
+      inherit (cself.rustc-unwrapped) version;
       manifest = rlib.manifestTargets (cself.manifestFile);
+
+      context = {
+        inherit stdenv pkgs buildPackages targetPackages rlib;
+      };
 
       # Rough layout here:
       # 1. pkgs.rustChannel.stable (or any other distChannel):
@@ -22,10 +27,6 @@
       #    1. Functions are all for generating target derivations like normal (compatible with pkgs.rustPlatform.buildRustPackage)
       #    2. Derivations are all from buildChannel! So rustPlatform.rustc is the native builder variant.
       #    3. hostChannel also exists as a way to find your way back
-
-      context = {
-        inherit stdenv pkgs buildPackages targetPackages rlib;
-      };
 
       # target configuration
       # TODO: use https://github.com/rust-lang/rustup-components-history/blob/master/README.md#the-web-part to decide what nightly to download if certain features are required?
@@ -41,6 +42,16 @@
       hostTools = cself.tools; # alias necessary?
       buildTools = cself.buildChannel.tools;
       targetTools = cself.targetChannel.tools;
+      rust-cc =
+        rlib.rustCcEnv { target = cself.buildTarget; }
+        // rlib.rustCcEnv { target = cself.hostTarget; }
+        // rlib.rustCcEnv { target = cself.targetTarget; };
+      cargo-cc =
+        rlib.cargoEnv { target = cself.buildTarget; }
+        // rlib.cargoEnv { target = cself.hostTarget; }
+        // rlib.cargoEnv { target = cself.targetTarget; default = true; };
+
+      # rust
       sysroot-std = lib.unique [ cself.hostTools.rust-std cself.buildTools.rust-std cself.targetTools.rust-std ];
       rustc-unwrapped = cself.tools.rustc;
       cargo-unwrapped = cself.tools.cargo;
@@ -48,6 +59,17 @@
       rust-sysroot = rlib.rustSysroot {
         std = cself.sysroot-std;
       };
+      rustc = rlib.wrapRustc {
+        rustc = cself.rustc-unwrapped;
+        sysroot = cself.rust-sysroot;
+      };
+      cargo = rlib.wrapCargo {
+        cargo = cself.cargo-unwrapped;
+        cargoEnv = cself.cargo-cc // cself.rust-cc;
+        inherit (cself) rustc;
+      };
+
+      # bundled tools and customized overrides
       llvm-tools = rlib.wrapTargetBin {
         target = cself.targetTarget; # TODO: or hostTarget?
         inner = cself.tools.llvm-tools or cself.tools.llvm-tools-preview; # TODO: make sure renames work in manifestTargets instead!
@@ -82,23 +104,9 @@
         inherit (cself.tools) rls;
         inherit (cself) rls-sysroot rustc;
       };
-      rust-cc =
-        rlib.rustCcEnv { target = cself.buildTarget; }
-        // rlib.rustCcEnv { target = cself.hostTarget; }
-        // rlib.rustCcEnv { target = cself.targetTarget; };
-      cargo-cc =
-        rlib.cargoEnv { target = cself.buildTarget; }
-        // rlib.cargoEnv { target = cself.hostTarget; }
-        // rlib.cargoEnv { target = cself.targetTarget; default = true; };
-      rustc = rlib.wrapRustc {
-        rustc = cself.rustc-unwrapped;
-        sysroot = cself.rust-sysroot;
-      };
-      cargo = rlib.wrapCargo {
-        cargo = cself.cargo-unwrapped;
-        cargoEnv = cself.cargo-cc // cself.rust-cc;
-        inherit (cself) rustc;
-      };
+
+      # build support
+      mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
       fetchcargo = fetchcargo.override {
         inherit (cself.buildTools) cargo;
       };
@@ -117,6 +125,8 @@
         hostChannel = cself;
       };
       inherit (cself.rustPlatform) buildRustPackage rust rustcSrc;
+
+      # buildPackages and targetPackages variants
       # TODO: UGH PROBLEM HERE IS IF YOU EXTEND CSELF, YOU DON'T ALSO GET TO EXTEND THESE FOR FREE!!!
       # So if you set some setting, it will only apply for the hostChannel which usually isn't even what you want :(
       # offer a (global? or at least nested that applies to current and all under) channel overlay?
@@ -128,7 +138,6 @@
         inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
         rlib = rlib.targetLib;
       });
-      mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
     };
   in lib.makeExtensible (channelBuilder {
     inherit stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
