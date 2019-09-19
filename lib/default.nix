@@ -23,4 +23,7 @@ self: super: {
     if package == null then null
     else if isList package then builtins.filter find inputs
     else findFirst find (throw "cannot find ${package.name} in ${toString (map parseDrvName inputs)}") inputs;
+
+  retainAttrs = attrs: whitelist: with self;
+    filterAttrs (k: _: any (w: w == k) whitelist) attrs;
 }

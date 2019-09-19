@@ -1,32 +1,28 @@
 { pkgs, lib, self, ... }: let
-  parseRustToolchain = file: with builtins;
-    if file == null then
-      {}
-    else
-      let res = match "([a-z]*)-([0-9-]*).*" (readFile file); in
-      { channel = head res; date = head (tail res); };
-  defaultDistRoot = "https://static.rust-lang.org";
 in {
+  parseRustToolchain = file: with builtins; let
+    res = match "([a-z]*)-([0-9-]*).*" (readFile file);
+  in {
+    channel = head res;
+    date = head (tail res);
+  };
+
   # See https://github.com/rust-lang-nursery/rustup.rs/blob/master/src/rustup-dist/src/dist.rs
   manifest_v1_url = {
-    dist_root ? defaultDistRoot + "/dist",
-    date ? null,
-    staging ? false,
+    distRoot ? self.distRoot
+  , date ? null
+  , staging ? false
     # A channel can be "nightly", "beta", "stable", "\d{1}.\d{1}.\d{1}", or "\d{1}.\d{2\d{1}".
-    channel ? "nightly",
-    rustToolchain ? null,
-    ...
-  }:
-    let args = { inherit channel date; } // parseRustToolchain rustToolchain; in
-    let inherit (args) date channel; in
-    if date == null && staging == false
-    then "${dist_root}/channel-rust-${channel}"
+  , channel
+  }: if date == null && staging == false
+    then "${distRoot}/channel-rust-${channel}"
     else if date != null && staging == false
-    then "${dist_root}/${date}/channel-rust-${channel}"
+    then "${distRoot}/${date}/channel-rust-${channel}"
     else if date == null && staging == true
-    then "${dist_root}/staging/channel-rust-${channel}"
+    then "${distRoot}/staging/channel-rust-${channel}"
     else throw "not a real-world case";
 
+  distRoot = "https://static.rust-lang.org/dist";
   distFormat = "xz";
 
   getFetchUrl = srcInfo:
@@ -38,12 +34,17 @@ in {
       sha256 = srcInfo.hash;
     });
 
-  manifestPath = { url, sha256 ? null, path ? null }:
+  manifestPath = { url, sha256 ? null, path ? null, channel ? null }:
     if path != null && builtins.pathExists path then builtins.path ({
       inherit path;
       recursive = false;
     } // lib.optionalAttrs (sha256 != null) {
       inherit sha256;
+    } // lib.optionalAttrs (channel != null) {
+      # TODO: consider making this "channel-rust-stable" for versioned releases so it shares the same nix store path as impure fetches?
+      # also set name when fetchurl'ing too!
+      # considering this is IFD'd this doesn't matter much, the resulting rust derivations will be identical regardless
+      name = "channel-rust-${channel}.toml";
     }) else if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
 
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {

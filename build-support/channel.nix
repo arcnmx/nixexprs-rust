@@ -1,13 +1,16 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
     stdenv, fetchcargo, pkgs, buildPackages, targetPackages, buildRustCrate
-    , sha256 ? null, channel ? null /* "stable" */, date ? null, manifestPath ? null
+    , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, buildRustCrate, rlib }: cself: {
-      manifestUrl = rlib.manifest_v2_url args;
+      manifestArgs = lib.optionalAttrs (rustToolchain != null) (rlib.parseRustToolchain rustToolchain) // {
+        distRoot = rlib.distRoot;
+      } // lib.retainAttrs args [ "date" "channel" "staging" ];
+      manifestUrl = rlib.manifest_v2_url cself.manifestArgs;
       manifestPath = rlib.manifestPath {
-        inherit sha256;
+        inherit channel sha256;
         path = args.manifestPath or null;
         url = cself.manifestUrl;
       };
