@@ -35,7 +35,8 @@ in {
     });
 
   manifestPath = { url, sha256 ? null, path ? null, channel ? null }:
-    if path != null && builtins.pathExists path then builtins.path ({
+    if path != null && builtins.pathExists path then path /*builtins.path ({
+      # TODO: builtins.path doesn't work as well with IFD as a direct path to the original because it generates a store path that needs to be copied/built first :(
       inherit path;
       recursive = false;
     } // lib.optionalAttrs (sha256 != null) {
@@ -45,7 +46,7 @@ in {
       # also set name when fetchurl'ing too!
       # considering this is IFD'd this doesn't matter much, the resulting rust derivations will be identical regardless
       name = "channel-rust-${channel}.toml";
-    }) else if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
+    })*/ else if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
 
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   manifest_v2_url = { lib }: with lib;
