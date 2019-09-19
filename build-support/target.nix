@@ -128,7 +128,7 @@ in {
     sysroot = lib.optional (sysroot != null) (lib.findInput drv.depsTargetTarget sysroot);
 
     unpackPhase = "true";
-    installPhase = assert stdenvNoCC.hostPlatform.isLinux; ''
+    installPhase = ''
       if [[ -n $sysroot ]]; then
         extraRustcArgs=(
           --set-default RUSTC_SYSROOT $sysroot
