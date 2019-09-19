@@ -38,8 +38,13 @@ in {
       sha256 = srcInfo.hash;
     });
 
-  manifestFile = { url, sha256 ? null }:
-    if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
+  manifestPath = { url, sha256 ? null, path ? null }:
+    if path != null && builtins.pathExists path then builtins.path ({
+      inherit path;
+      recursive = false;
+    } // lib.optionalAttrs (sha256 != null) {
+      inherit sha256;
+    }) else if sha256 == null then builtins.fetchurl url else self.fetchurl { inherit sha256 url; };
 
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   manifest_v2_url = { lib }: with lib;

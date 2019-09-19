@@ -24,6 +24,7 @@ let overlay = self: super: with super.lib; let
 
     releases = lib.mapAttrs (channel: sha256: rself.distChannel {
       inherit channel sha256;
+      manifestPath = ./releases + "/channel-rust-${channel}.toml";
     }) rself.releaseHashes;
   });
 in {

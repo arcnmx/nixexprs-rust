@@ -1,17 +1,19 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
     stdenv, fetchcargo, pkgs, buildPackages, targetPackages, buildRustCrate
-    , sha256 ? null, channel ? null /* "stable" */, date ? null
+    , sha256 ? null, channel ? null /* "stable" */, date ? null, manifestPath ? null
   }@args: let
-    manifestFile = self.manifestFile {
-      inherit sha256;
-      url = self.manifest_v2_url args;
-    };
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, buildRustCrate, rlib }: cself: {
-      inherit manifestFile channel date;
+      manifestUrl = rlib.manifest_v2_url args;
+      manifestPath = rlib.manifestPath {
+        inherit sha256;
+        path = args.manifestPath or null;
+        url = cself.manifestUrl;
+      };
+      inherit channel date;
       inherit (cself.rustc-unwrapped) version;
-      manifest = rlib.manifestTargets (cself.manifestFile);
+      manifest = rlib.manifestTargets (cself.manifestPath);
 
       context = {
         inherit stdenv pkgs buildPackages targetPackages rlib;
