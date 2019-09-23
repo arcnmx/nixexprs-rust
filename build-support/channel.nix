@@ -2,7 +2,7 @@
   distChannel = pkgs.callPackage ({
     stdenv, fetchcargo, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
-  , overlays ? []
+  , channelOverlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
@@ -127,23 +127,23 @@
       } {
         inherit (cself.buildChannel) cargo rustc rust-src;
       } // {
-        inherit (cself) fetchcargo mkShell buildRustCrate;
+        inherit (cself) context fetchcargo mkShell buildRustCrate;
         inherit (cself) buildChannel targetChannel;
         hostChannel = cself;
       };
       inherit (cself.rustPlatform) buildRustPackage rust rustcSrc;
 
       # buildPackages and targetPackages variants
-      buildChannel = makeExtensibleChannel overlays (channelBuilder {
+      buildChannel = makeExtensibleChannel channelOverlays (channelBuilder {
         inherit (buildPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
         rlib = rlib.buildLib;
       });
-      targetChannel = makeExtensibleChannel overlays (channelBuilder {
+      targetChannel = makeExtensibleChannel channelOverlays (channelBuilder {
         inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
         rlib = rlib.targetLib;
       });
     };
-  in makeExtensibleChannel overlays (channelBuilder {
+  in makeExtensibleChannel channelOverlays (channelBuilder {
     inherit stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
     rlib = self;
   })) { };
