@@ -78,7 +78,7 @@
 
       # bundled tools and customized overrides
       llvm-tools = rlib.wrapTargetBin {
-        target = cself.targetTarget; # TODO: or hostTarget?
+        target = cself.hostTarget;
         inner = cself.tools.llvm-tools or cself.tools.llvm-tools-preview; # TODO: make sure renames work in manifestTargets instead!
       };
       bintools = rlib.wrapLlvmBintools {
