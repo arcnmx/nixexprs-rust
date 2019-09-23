@@ -253,6 +253,28 @@ in {
     buildCommand = ''
       ln -s $rustcSrc/lib/rustlib/src/rust/src $out
     '';
+
+    passthru.shellHook = ''
+      export RUST_SRC_PATH=${drv}
+      export XARGO_RUST_SRC=${drv}
+    '';
+  });
+
+  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "${rust-src.pname}-wrapped";
+    inherit (rust-src) version;
+
+    nativeBuildInputs = [ makeWrapper ];
+    buildInputs = [ rust-src rust-analyzer ];
+
+    rustcSrc = lib.findInput drv.buildInputs rust-src;
+    rustAnalyzer = lib.findInput drv.buildInputs rust-analyzer;
+
+    buildCommand = ''
+      mkdir -p $out/bin
+      makeWrapper $rustAnalyzer/bin/ra_lsp_server $out/bin/ra_lsp_server \
+        --set-default RUST_SRC_PATH "$rustcSrc"
+    '';
   });
 
   wrapRlsSysroot = { stdenvNoCC }: { rust-sysroot, rust-src, rust-analysis }: lib.drvRec (drv: stdenvNoCC.mkDerivation {

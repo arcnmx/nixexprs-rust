@@ -111,6 +111,9 @@
         inherit (cself.tools) rls;
         inherit (cself) rls-sysroot rustc;
       };
+      rust-analyzer = rlib.wrapRustAnalyzer {
+        inherit (cself) rust-src;
+      };
 
       # build support
       mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
