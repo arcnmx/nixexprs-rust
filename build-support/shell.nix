@@ -1,11 +1,13 @@
 { pkgs, lib, self, ... }: lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
-  mkShell = { lib, buildPackages, mkShell, rustPlatform }: {
+  mkShell = { lib, buildPackages, mkShell, rustPlatform }: lib.makeOverridable ({
     allowBroken ? false # continue even if extra commands are missing or broken
   , rustfmtDist ? false # use rustfmt from the binary channel rather than from nixpkgs
   , cargoCommands ? [] # e.g. [ "bloat" "binutils" "fmt" "clippy" etc ]
   , rustTools ? [] # [ "llvm-tools" "rust-analyzer" "rls" "xargo" "gdb" "lldb" etc ]
   # TODO: enableRustLld? better to put that in the channel config though...
   , ...}@args: with lib; let
+    name = "rust-shell";
+
     env = removeAttrs args [
       "rustfmtDist"
       "cargoCommands" "rustTools"
@@ -33,5 +35,5 @@
       ++ [ rustPlatform.rustc rustPlatform.cargo ]
       ++ map mapTool rustTools
       ++ map mapCargo cargoCommands;
-  } // env);
+  } // env));
 }

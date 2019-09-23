@@ -1,9 +1,11 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
     stdenv, fetchcargo, pkgs, buildPackages, targetPackages, buildRustCrate
-    , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
+  , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
+  , overlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
+    makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
     channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, buildRustCrate, rlib }: cself: {
       manifestArgs = lib.optionalAttrs (rustToolchain != null) (rlib.parseRustToolchain rustToolchain) // {
         distRoot = rlib.distRoot;
@@ -132,19 +134,16 @@
       inherit (cself.rustPlatform) buildRustPackage rust rustcSrc;
 
       # buildPackages and targetPackages variants
-      # TODO: UGH PROBLEM HERE IS IF YOU EXTEND CSELF, YOU DON'T ALSO GET TO EXTEND THESE FOR FREE!!!
-      # So if you set some setting, it will only apply for the hostChannel which usually isn't even what you want :(
-      # offer a (global? or at least nested that applies to current and all under) channel overlay?
-      buildChannel = lib.makeExtensible (channelBuilder {
+      buildChannel = makeExtensibleChannel overlays (channelBuilder {
         inherit (buildPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
         rlib = rlib.buildLib;
       });
-      targetChannel = lib.makeExtensible (channelBuilder {
+      targetChannel = makeExtensibleChannel overlays (channelBuilder {
         inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
         rlib = rlib.targetLib;
       });
     };
-  in lib.makeExtensible (channelBuilder {
+  in makeExtensibleChannel overlays (channelBuilder {
     inherit stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
     rlib = self;
   })) { };
