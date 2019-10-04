@@ -28,7 +28,7 @@
       "clippy" = tryPackage rustPlatform "clippy";
     }.${c} or (tryPackage buildPackages "cargo-${c}");
     mapTool = c: {
-      "rust-analyzer" = tryPackage buildPackages "rust-analyzer";
+      #"rust-analyzer" = tryPackage buildPackages "rust-analyzer";
     }.${c} or (tryPackage rustPlatform c);
   in mkShell ({
     nativeBuildInputs = args.nativeBuildInputs or []
