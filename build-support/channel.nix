@@ -98,7 +98,7 @@
       lldb = rlib.wrapGdb.override { gdb = cself.lldb-unwrapped; } {
         inherit (cself) rustc-unwrapped;
       };
-      miri = rlib.wrapMiri.override { xargo = pkgs.xargo-unwrapped or pkgs.xargo; } {
+      miri = rlib.wrapMiri.override { xargo = pkgs.xargo-unwrapped or pkgs.xargo or null; } {
         inherit (cself.tools) miri;
         inherit (cself) rust-src rustc cargo;
       };

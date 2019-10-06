@@ -50,7 +50,8 @@ in {
   };
 
   rustTargetFor = platform:
-    self.targetForConfig.${platform.config}
+    platform.platform.rust.target
+    or self.targetForConfig.${platform.config}
     or self.targetForSystem.${platform.system}
     or platform.config;
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
@@ -260,9 +261,9 @@ in {
     '';
   });
 
-  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
-    pname = "${rust-src.pname}-wrapped";
-    inherit (rust-src) version;
+  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer ? null, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "rust-analyzer-wrapped";
+    version = rust-analyzer.version or "unknown";
 
     nativeBuildInputs = [ makeWrapper ];
     buildInputs = [ rust-src rust-analyzer ];
@@ -275,6 +276,10 @@ in {
       makeWrapper $rustAnalyzer/bin/ra_lsp_server $out/bin/ra_lsp_server \
         --set-default RUST_SRC_PATH "$rustcSrc"
     '';
+
+    meta = rust-analyzer.meta or {} // {
+      broken = rust-analyzer == null || rust-analyzer.meta.broken or false;
+    };
   });
 
   wrapRlsSysroot = { stdenvNoCC }: { rust-sysroot, rust-src, rust-analysis }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
@@ -331,9 +336,9 @@ in {
     '';
   });
 
-  wrapMiri = { stdenvNoCC, makeWrapper, xargo }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  wrapMiri = { stdenvNoCC, makeWrapper, xargo ? null }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${miri.pname}-wrapped";
-    inherit (miri) version meta;
+    inherit (miri) version;
 
     buildInputs = [ miri rust-src cargo rustc xargo makeWrapper ];
 
@@ -352,6 +357,10 @@ in {
         --set-default CARGO "$cargo/bin/cargo" \
         --set-default MIRI_SKIP_SYSROOT_CHECK 1
     '';
+
+    meta = miri.meta or {} // {
+      broken = miri.broken or false || xargo == null;
+    };
   });
 
   makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo }: { cargo, rustc, rust-src }: makeRustPlatform {
