@@ -44,23 +44,18 @@ in {
     };
   };
   channels.rust.path = src;
-  jobs = {
-    unstable = {
-      system = "x86_64-linux";
-      channels.nixpkgs = "unstable";
-    };
-    unstable-mac = {
-      system = "x86_64-darwin";
-      channels.nixpkgs = "unstable";
-    };
-    beta = {
-      system = "x86_64-linux";
-      channels.nixpkgs = "19.09";
-    };
-    beta-mac = {
-      system = "x86_64-darwin";
-      channels.nixpkgs = "19.09";
-    };
+  jobs = listToAttrs (flip crossLists [ # build matrix
+    [ # channels
+      { nixpkgs = "unstable"; }
+      { nixpkgs = "19.09"; name = "beta"; }
+    ] [ # systems
+      { system = "x86_64-linux"; }
+      { system = "x86_64-darwin"; postfix = "-mac"; }
+    ]
+  ] ({ nixpkgs, name ? nixpkgs }: { system, postfix ? "" }: nameValuePair "${name}${postfix}" {
+    inherit system;
+    channels = { inherit nixpkgs; };
+  })) // {
     cross-arm = { channels, pkgs, ... }: {
       system = "x86_64-linux";
       channels.nixpkgs.args = {
