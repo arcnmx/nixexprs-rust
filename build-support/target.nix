@@ -301,7 +301,7 @@ in {
 
   wrapRls = { stdenvNoCC, makeWrapper }: { rls, rls-sysroot, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rls-wrapped";
-    inherit (rls) version;
+    version = if rls.version or null != null then rls.version else "unknown";
 
     nativeBuildInputs = [ makeWrapper ];
     buildInputs = [ rls rls-sysroot rustc ];
