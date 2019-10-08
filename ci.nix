@@ -26,21 +26,20 @@ in {
     };
     nightly = {
       inputs = mapAttrs (_: rustPackages) {
-        inherit (channels.rust) stable beta;
+        inherit (channels.rust) nightly;
       };
       warn = true;
       cache.enable = false;
     };
-    shell = {
-      inputs = {
-        stable = pkgs.ci.command {
-          name = "shell";
-          command = ''
-            nix-shell ${builtins.unsafeDiscardStringContext (channels.rust.stable.mkShell {}).drvPath} --run "cargo --version"
-          '';
-          impure = true;
-        };
-      };
+    shell.inputs.stable = pkgs.ci.command {
+      name = "shell";
+      command = let
+        shell = channels.rust.stable.mkShell {};
+        drv = builtins.unsafeDiscardStringContext shell.drvPath;
+      in ''
+        nix-shell ${drv} --run "cargo --version"
+      '';
+      impure = true;
     };
   };
   channels.rust.path = src;
