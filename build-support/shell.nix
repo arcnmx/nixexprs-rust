@@ -30,10 +30,10 @@
     mapTool = c: {
       #"rust-analyzer" = tryPackage buildPackages "rust-analyzer";
     }.${c} or (tryPackage rustPlatform c);
-    nativeBuildInputs = args.nativeBuildInputs or []
+    nativeBuildInputs = filter (i: i != null) (args.nativeBuildInputs or []
       ++ [ rustPlatform.rustc rustPlatform.cargo ]
       ++ map mapTool rustTools
-      ++ map mapCargo cargoCommands;
+      ++ map mapCargo cargoCommands);
   in mkShell ({
     inherit nativeBuildInputs;
     shellHook = concatStringsSep "\n" (catAttrs "shellHook" nativeBuildInputs);
