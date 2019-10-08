@@ -67,6 +67,7 @@ in {
       nixpkgs = "unstable";
 
       # build and run a bare-metal arm example
+      # try it out! `nix run ci.job.cross-arm.test.cortex-m`
       tasks.cortex-m.inputs = channels.rust.stable.buildRustPackage rec {
         pname = "cortex-m-quickstart";
         version = "2019-08-13";
@@ -82,8 +83,8 @@ in {
 
         buildType = "debug";
         postBuild = ''
-          doCheck=true # nixpkgs cross builds force doCheck=false :(
-        '';
+          doCheck=true
+        ''; # nixpkgs cross builds force doCheck=false :(
 
         nativeBuildInputs = [ channels.cipkgs.qemu ]; # this should be checkInputs but...
         checkPhase = ''
