@@ -46,7 +46,7 @@ in {
   jobs = listToAttrs (flip crossLists [ # build matrix
     [ # channels
       { nixpkgs = "unstable"; }
-      { nixpkgs = "19.09"; name = "beta"; }
+      { nixpkgs = "19.09"; name = "stable"; }
     ] [ # systems
       { system = "x86_64-linux"; }
       { system = "x86_64-darwin"; postfix = "-mac"; }
