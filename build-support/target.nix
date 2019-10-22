@@ -136,9 +136,9 @@ in {
         )
       fi
       extraRustcArgs+=(
-        --run '[[ -z $RUSTC_SYSROOT || $* = *--sysroot* ]] || extraFlagsArray+=(--sysroot $RUSTC_SYSROOT)'
-        --run '[[ -z $RUSTC_TARGET || $* = *--target* ]] || extraFlagsArray+=(--target $RUSTC_TARGET)'
-        --run '[[ -z $RUSTC_FLAGS ]] || extraFlagsArray+=($RUSTC_FLAGS)'
+        --run '[[ -z $RUSTC_SYSROOT || $* = *--sysroot* ]] || set -- --sysroot "$RUSTC_SYSROOT" "$@"'
+        --run '[[ -z $RUSTC_TARGET || $* = *--target* ]] || set -- --target "$RUSTC_TARGET" "$@"'
+        --run '[[ -z $RUSTC_FLAGS ]] || set -- $RUSTC_FLAGS "$@"'
       )
 
       mkdir -p $out/bin
@@ -215,14 +215,14 @@ in {
       for g in $gdb/bin/*gdb; do
         makeWrapper $g $out/bin/$(basename $g) \
           --prefix PYTHONPATH : $rustcGdb \
-          --run "extraFlagsArray+=(--directory=$rustcGdb -iex 'add-auto-load-safe-path $rustcGdb')"
+          --run "set -- --directory=$rustcGdb -iex 'add-auto-load-safe-path $rustcGdb' \"\$@\""
       done
 
       for g in $gdb/bin/*lldb; do
         makeWrapper $g $out/bin/$(basename $g) \
-          --run "extraFlagsArray+=(--one-line-before-file 'command script import $rustcGdb/lldb_rust_formatters.py')" \
-          --run "extraFlagsArray+=(--one-line-before-file 'type summary add --no-value --python-function lldb_rust_formatters.print_val -x \".*\" --category Rust')" \
-          --run "extraFlagsArray+=(--one-line-before-file 'type category enable Rust')"
+          --run "set -- --one-line-before-file 'command script import $rustcGdb/lldb_rust_formatters.py' \"\$@\"" \
+          --run "set -- --one-line-before-file 'type summary add --no-value --python-function lldb_rust_formatters.print_val -x \".*\" --category Rust' \"\$@\"" \
+          --run "set -- --one-line-before-file 'type category enable Rust' \"\$@\""
       done
     '';
   });
