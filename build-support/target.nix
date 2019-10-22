@@ -338,7 +338,7 @@ in {
 
   wrapMiri = { stdenvNoCC, makeWrapper, xargo ? null }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${miri.pname}-wrapped";
-    inherit (miri) version;
+    version = if miri.version or null != null then miri.version else "unknown";
 
     buildInputs = [ miri rust-src cargo rustc xargo makeWrapper ];
 
