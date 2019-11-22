@@ -99,7 +99,7 @@ in {
 
     ${if hasCargo then "setupHook" else null} = builtins.toFile "cargo-setup-hook.sh" ''
       # see <nixpkgs/pkgs/development/compilers/rust/setup-hook.sh>
-      if [[ -z $IN_NIX_SHELL && -z $CARGO_HOME ]]; then
+      if [[ -z ''${IN_NIX_SHELL-} && -z ''${CARGO_HOME-} ]]; then
         export CARGO_HOME=$TMPDIR
       fi
     '';
