@@ -33,8 +33,8 @@ in {
   };
 
   targetForConfig = {
-    i686-pc-mingw32 = "i686-pc-windows-gnu";
-    x86_64-pc-mingw32 = "x86_64-pc-windows-gnu";
+    i686-w64-mingw32 = "i686-pc-windows-gnu";
+    x86_64-w64-mingw32 = "x86_64-pc-windows-gnu";
     i686-apple-ios = "i386-iphone-ios";
     armv6m-none-eabi = "thumbv6m-none-eabi";
     armv7m-none-eabi = "thumbv7m-none-eabi";
