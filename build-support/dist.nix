@@ -84,7 +84,7 @@ in {
     };
 
     preferLocalBuild = true;
-    nativeBuildInputs = optionals stdenvNoCC.hostPlatform.isLinux [ autoPatchelfHook ];
+    nativeBuildInputs = optionals (stdenvNoCC.hostPlatform.isLinux && !stdenvNoCC.hostPlatform.isMusl) [ autoPatchelfHook ];
     inherit buildInputs;
 
     dontStrip = true;
