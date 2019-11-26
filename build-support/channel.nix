@@ -45,7 +45,7 @@
         { inherit (targetPackages) stdenv; }
         // lib.optionalAttrs (cself.targetRustLld) { linker = null; }
       );
-      tools = cself.manifest.targetForPlatform stdenv.hostPlatform;
+      tools = cself.manifest.targetForPlatform cself.hostTarget.triple;
       hostTools = cself.tools; # alias necessary?
       buildTools = cself.buildChannel.tools;
       targetTools = cself.targetChannel.tools;

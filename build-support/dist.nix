@@ -244,8 +244,8 @@ in {
       {}
       targets;
     targetForPlatform = platform: (
-      target.${self.rustTargetFor platform}
-      or (builtins.trace "WARN: Rust binary distribution does not support ${platform.config}" {})
+      target.${platform}
+      or (builtins.trace "WARN: Rust binary distribution does not support ${platform}" {})
       // target."*" or {});
   in {
     inherit targetForPlatform;
