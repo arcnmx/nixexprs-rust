@@ -10,7 +10,6 @@ let overlay = self: super: with super.lib; let
     });
     pkgs = self;
     path = ./.;
-    inherit super;
 
     distChannel = rself.lib.distChannel.override;
 

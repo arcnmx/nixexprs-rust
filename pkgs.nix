@@ -2,4 +2,4 @@
   overlay = import ./overlay.nix;
 in if pkgs.rustChannel.path or null == ./.
   then pkgs
-  else (pkgs.rustChannel.super or pkgs).extend overlay
+  else pkgs.extend overlay
