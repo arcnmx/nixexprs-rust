@@ -273,7 +273,7 @@ in {
 
     buildCommand = ''
       mkdir -p $out/bin
-      makeWrapper $rustAnalyzer/bin/ra_lsp_server $out/bin/ra_lsp_server \
+      makeWrapper $rustAnalyzer/bin/rust-analyzer $out/bin/rust-analyzer \
         --set-default RUST_SRC_PATH "$rustcSrc"
     '';
 
