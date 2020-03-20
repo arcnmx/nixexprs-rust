@@ -33,9 +33,14 @@ let overlay = self: super: with super.lib; let
       manifestPath = ./releases + "/channel-rust-${channel}.toml";
     }) rself.releaseHashes;
   });
-in {
-  fetchcargo = self.buildPackages.callPackage (self.path + "/pkgs/build-support/rust/fetchcargo.nix") { }; # TODO: override cargo?
-
+  fetchcargoPath = super.path + "/pkgs/build-support/rust/fetchcargo.nix";
+  fetchCargoTarballPath = super.path + "/pkgs/build-support/rust/fetchCargoTarball.nix";
+  fetchcargos = lib.optionalAttrs (builtins.pathExists fetchcargoPath) {
+    fetchcargo = self.buildPackages.callPackage fetchcargoPath { }; # TODO: override cargo?
+  } // lib.optionalAttrs (builtins.pathExists fetchCargoTarballPath) {
+    fetchCargoTarball = self.buildPackages.callPackage fetchCargoTarballPath { }; # TODO: override cargo?
+  };
+in fetchcargos // {
   inherit rustChannel lib;
 
   # For backward compatibility

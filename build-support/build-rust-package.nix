@@ -1,8 +1,9 @@
-{ path, lib, rustChannel, stdenv, cacert, git, cargo, rustc, fetchcargo }: {
+{ path, lib, rustChannel, stdenv, cacert, git, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, windows ? null, buildPackages }: {
   name ? "${args.pname}-${args.version}"
 , cargoSha256 ? lib.fakeSha256
 , src ? null
 , srcs ? null
+, unpackPhase ? null
 , cargoPatches ? []
 , patches ? []
 , sourceRoot ? null
@@ -15,25 +16,26 @@
 , buildType ? "release"
 , cargoVendorDir ? null
 , ... }@args: let
+  fetchCargo = if fetchCargoTarball == null || args.legacyCargoFetcher or false then fetchcargo else fetchCargoTarball;
   cargoDeps = if cargoVendorDir == null
-    then fetchcargo {
-      inherit name src srcs sourceRoot cargoUpdateHook;
+    then fetchCargo {
+      inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
       patches = cargoPatches;
       sha256 = cargoSha256;
     } else null;
   setupVendorDir = if cargoVendorDir == null
     then ''
       unpackFile $cargoDeps
-      cargoDepsCopy=$(stripHash $(basename $cargoDeps))
+      cargoDepsCopy=$(stripHash $cargoDeps)
       chmod -R +w $cargoDepsCopy
     '' else ''
       cargoDepsCopy="$sourceRoot/$cargoVendorDir"
     '';
 in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
-  nativeBuildInputs = [ cargoDeps cargo rustc git cacert ] ++ nativeBuildInputs;
-  inherit buildInputs;
-  cargoDeps = lib.findInput drv.nativeBuildInputs cargoDeps;
+  nativeBuildInputs = [ cargo rustc git cacert ] ++ nativeBuildInputs;
+  buildInputs = buildInputs ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
+  inherit cargoDeps;
 
   patches = cargoPatches ++ patches;
 

@@ -1,12 +1,12 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
-    stdenv, fetchcargo, pkgs, buildPackages, targetPackages, buildRustCrate
+    stdenv, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
   , channelOverlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
-    channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, buildRustCrate, rlib }: cself: {
+    channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, fetchCargoTarball, buildRustCrate, rlib }: cself: {
       manifestArgs = lib.optionalAttrs (rustToolchain != null) (rlib.parseRustToolchain rustToolchain) // {
         distRoot = rlib.distRoot;
       } // lib.retainAttrs args [ "date" "channel" "staging" ];
@@ -117,20 +117,23 @@
 
       # build support
       mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
-      fetchcargo = fetchcargo.override {
+      fetchcargo = lib.mapNullable (f: f.override {
         inherit (cself.buildTools) cargo;
-      };
+      }) fetchcargo;
+      fetchCargoTarball = lib.mapNullable (f: f.override {
+        inherit (cself.buildTools) cargo;
+      }) fetchCargoTarball;
       buildRustCrate = buildRustCrate.override {
         # TODO: rlib.buildRustCrate!
         inherit (cself.buildTools) rustc;
       };
       rustPlatform = builtins.removeAttrs cself.buildChannel ["rustPlatform"] // rlib.makeRustPlatform.override {
         inherit stdenv;
-        inherit (cself) fetchcargo;
+        inherit (cself) fetchcargo fetchCargoTarball;
       } {
         inherit (cself.buildChannel) cargo rustc rust-src;
       } // {
-        inherit (cself) context fetchcargo mkShell buildRustCrate;
+        inherit (cself) context fetchcargo fetchCargoTarball mkShell buildRustCrate;
         inherit (cself) buildChannel targetChannel;
         hostChannel = cself;
       };
@@ -138,16 +141,16 @@
 
       # buildPackages and targetPackages variants
       buildChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (buildPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
+        inherit (buildPackages) stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
         rlib = rlib.buildLib;
       });
       targetChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
+        inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
         rlib = rlib.targetLib;
       });
     };
   in makeExtensibleChannel channelOverlays (channelBuilder {
-    inherit stdenv pkgs buildPackages targetPackages fetchcargo buildRustCrate;
+    inherit stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
     rlib = self;
   })) { };
 }

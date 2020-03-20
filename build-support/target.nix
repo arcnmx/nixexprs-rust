@@ -363,12 +363,12 @@ in {
     };
   });
 
-  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo }: { cargo, rustc, rust-src }: makeRustPlatform {
+  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo ? null, fetchCargoTarball ? null }: { cargo, rustc, rust-src }: makeRustPlatform {
     inherit cargo rustc;
   } // {
     rustcSrc = rust-src;
     buildRustPackage = self.buildRustPackage.override {
-      inherit path lib stdenv fetchcargo rustc cargo;
+      inherit path lib stdenv fetchcargo fetchCargoTarball rustc cargo;
       inherit (buildPackages) cacert git;
     };
   };
