@@ -1,4 +1,4 @@
-{ path, lib, rustChannel, stdenv, cacert, git, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, windows ? null, buildPackages }: {
+{ path, lib, rustChannel, stdenv, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, windows ? null, buildPackages }: {
   name ? "${args.pname}-${args.version}"
 , cargoSha256 ? lib.fakeSha256
 , src ? null
@@ -33,7 +33,7 @@
     '';
 in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
-  nativeBuildInputs = [ cargo rustc git cacert ] ++ nativeBuildInputs;
+  nativeBuildInputs = [ cargo rustc ] ++ nativeBuildInputs;
   buildInputs = buildInputs ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
   inherit cargoDeps;
 

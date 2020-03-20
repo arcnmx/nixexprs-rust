@@ -369,7 +369,6 @@ in {
     rustcSrc = rust-src;
     buildRustPackage = self.buildRustPackage.override {
       inherit path lib stdenv fetchcargo fetchCargoTarball rustc cargo;
-      inherit (buildPackages) cacert git;
     };
   };
 }
