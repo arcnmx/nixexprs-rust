@@ -211,7 +211,9 @@ in {
     #pkgVersion = self.lib.replaceStrings [" " "(" ")"] ["-" "" ""];
     pkgVersion = version: let
       version' = builtins.match "([^ ]*) [(]([^ ]*) ([^ ]*)[)]" version;
-    in if version == "" then null else "${elemAt version' 0}-${elemAt version' 2}-${elemAt version' 1}";
+    in if version == "" then null
+      else if version' == null then version
+      else "${elemAt version' 0}-${elemAt version' 2}-${elemAt version' 1}";
     disambiguatePkg = pname: target: {
       rust-std = "rust-std-${target}";
       rust-analysis = "rust-analysis-${target}";
