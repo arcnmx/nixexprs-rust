@@ -28,6 +28,7 @@ let overlay = self: super: with super.lib; let
       "1.42.0" = "0pddwpkpwnihw37r8s92wamls8v0mgya67g9m8h6p5zwgh4il1z6";
       "1.43.0" = "1y8m8cl4njhmbhichs8hlw6vg91id6asjf180gc6gd41x1a0pypr";
       "1.43.1" = "10srbr109pffvmfnqbqhr5z23wsz021bsy6flbw1pydlwkl3h276";
+      "1.44.0" = "17m0lyjx20wlgfp6szsnm17q96jfl0d1iv9pqmxlad5r2msnybyc";
     };
 
     releases = lib.mapAttrs (channel: sha256: rself.distChannel {
