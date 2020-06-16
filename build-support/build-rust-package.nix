@@ -125,7 +125,7 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
     runHook postInstall
   '';
   passthru = {
-    inherit (drv) cargoDeps;
+    #inherit (drv) cargoDeps;
     #inherit rustChannel;
   } // args.passthru or { };
 }))
