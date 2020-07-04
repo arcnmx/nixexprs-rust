@@ -57,7 +57,7 @@ in {
     nix-fetchurl = builtins.tryEval (import <nix/fetchurl.nix>);
   in if nix-fetchurl.success then nix-fetchurl.value else fetchurl;
 
-  getPackageTarget = { stdenvNoCC, stdenv, lib, autoPatchelfHook }: { target, buildInputs }: with lib; let
+  getPackageTarget = { stdenvNoCC, stdenv, zlib, lib, autoPatchelfHook }: { target, buildInputs }: with lib; let
     extensions = filterAttrs (_: v: v.embedded && v.available) target.extensions;
     hasOut = target.components == { };
     outputs = [ "out" ] ++ (mapAttrsToList (_: { name, ... }: name) (target.components // extensions));
@@ -85,7 +85,7 @@ in {
 
     preferLocalBuild = true;
     nativeBuildInputs = optionals (stdenvNoCC.hostPlatform.isLinux && !stdenvNoCC.hostPlatform.isMusl) [ autoPatchelfHook ];
-    inherit buildInputs;
+    buildInputs = buildInputs ++ optional (target.name == "rustc") zlib;
 
     dontStrip = true;
     forceShare = " ";
