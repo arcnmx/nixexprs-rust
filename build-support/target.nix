@@ -252,13 +252,12 @@ in {
     rustcSrc = lib.findInput drv.buildInputs rust-src;
 
     buildCommand = ''
+      install -d $out
       if [[ -d $rustcSrc/lib/rustlib/src/rust/src ]]; then
-        ln -s $rustcSrc/lib/rustlib/src/rust/src $out
-      elif [[ -d $rustcSrc/lib/rustlib/src/rust/library ]]; then
-        ln -s $rustcSrc/lib/rustlib/src/rust/library $out
-      else
-        echo "Couldn't find $rustcSrc/lib/rustlib/src/rust/src" >&2
-        exit 1
+        ln -s $rustcSrc/lib/rustlib/src/rust/src/* $out/
+      fi
+      if [[ -d $rustcSrc/lib/rustlib/src/rust/library ]]; then
+        ln -s $rustcSrc/lib/rustlib/src/rust/library/* $out/
       fi
     '';
 
