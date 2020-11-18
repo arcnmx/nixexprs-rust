@@ -36,8 +36,11 @@ in {
       command = let
         shell = channels.rust.stable.mkShell {};
         drv = builtins.unsafeDiscardStringContext shell.drvPath;
+        importFile = pkgs.writeText "shell.nix" ''
+          import ${drv}
+        '';
       in ''
-        nix-shell ${drv} --run "cargo --version"
+        nix-shell ${importFile} --run "cargo --version"
       '';
       impure = true;
     };
