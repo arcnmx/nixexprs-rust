@@ -79,7 +79,7 @@ in {
         };
 
         cargoPatches = [ ./ci/cortex-m-quickstart-lock.patch ];
-        cargoSha256 = "150glikhl5g8cwyq10piaa9r7yly6g57086qjdgv16r52wybvvqz";
+        cargoSha256 = "1l1js8lx0sfhfvf2dm64jpv4vsh4bvsyyqmcniq7w9z8hi52aixr";
 
         buildType = "debug";
         postBuild = ''
