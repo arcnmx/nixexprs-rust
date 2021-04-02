@@ -85,7 +85,10 @@
         # for use with cargo-binutils
         inner = cself.llvm-tools;
       };
-      cargo-binutils = pkgs.cargo-binutils.override { inherit (cself) bintools; };
+      cargo-binutils = rlib.wrapCargoBinutils {
+        inner = pkgs.cargo-binutils or pkgs.cargo-binutils-unwrapped or null;
+        inherit (cself) bintools;
+      };
       xargo = pkgs.xargo.override {
         inherit (cself) rustc cargo;
         rustcSrc = cself.rust-src;

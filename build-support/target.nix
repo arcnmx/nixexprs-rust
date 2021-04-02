@@ -342,6 +342,45 @@ in {
     '';
   });
 
+  wrapCargoBinutils = { stdenvNoCC, makeWrapper }: { inner, binutils }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+    pname = "${inner.pname}-wrapped";
+    inherit (inner) version meta;
+
+    nativeBuildInputs = [ makeWrapper ];
+    buildInputs = [ inner binutils ];
+
+    inner = lib.findInput drv.buildInputs inner;
+    binutils = lib.findInput drv.buildInputs binutils;
+
+    # $bintools/bin should contain: ar, nm, objcopy, objdump, profdata, readobj/readelf, size, strip, cov
+    buildCommand = ''
+      mkdir -p $out/bin
+      for binary in $inner/bin/*; do
+        filename=$(basename $binary)
+        if [[ $filename = rust-* ]]; then
+          toolname=''${filename#rust-}
+          target=$binutils/bin/$toolname
+          if [[ $toolname = readobj && -e $bintools/bin/readelf && ! -e $bintools/bin/readobj ]]; then
+            target=$binutils/bin/readelf
+          fi
+          [[ ! -L $target ]] || target=$(readlink -e $target)
+          if [[ -e $target ]]; then
+            ln $target $out/bin/$filename
+          elif [[ -e $binutils/bin/llvm-$toolname ]]; then
+            ln $binutils/bin/llvm-$toolname $out/bin/$filename
+          else
+            echo "$toolname not found in $binutils" >&2
+            exit 1
+          fi
+        else
+          makeWrapper $binary $out/bin/$(basename $binary) --argv0 '$0' \
+            --run '[[ -z $CARGO_BUILD_TARGET ]] || set -- --target "$CARGO_BUILD_TARGET" "$@"' \
+            --prefix PATH : $out
+        fi
+      done
+    '';
+  });
+
   wrapMiri = { stdenvNoCC, makeWrapper, xargo ? null }: { miri, rust-src, cargo, rustc }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${miri.pname}-wrapped";
     version = if miri.version or null != null then miri.version else "unknown";
