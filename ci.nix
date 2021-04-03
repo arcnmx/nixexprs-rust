@@ -69,33 +69,35 @@ in {
       };
       nixpkgs = "unstable";
 
-      # build and run a bare-metal arm example
-      # try it out! `nix run ci.job.cross-arm.test.cortex-m`
-      tasks.cortex-m.inputs = channels.rust.stable.buildRustPackage rec {
-        pname = "cortex-m-quickstart";
-        version = "2019-08-13";
-        src = channels.cipkgs.fetchFromGitHub {
-          owner = "rust-embedded";
-          repo = pname;
-          rev = "3ca2bb9a4666dabdd7ca73c6d26eb645cb018734";
-          sha256 = "0rf220rsfx10zlczgkfdvhk1gqq2gwlgysn7chd9nrc0jcj5yc7n";
+      tasks = mkForce {
+        # build and run a bare-metal arm example
+        # try it out! `nix run ci.job.cross-arm.test.cortex-m`
+        cortex-m.inputs = channels.rust.stable.buildRustPackage rec {
+          pname = "cortex-m-quickstart";
+          version = "2019-08-13";
+          src = channels.cipkgs.fetchFromGitHub {
+            owner = "rust-embedded";
+            repo = pname;
+            rev = "3ca2bb9a4666dabdd7ca73c6d26eb645cb018734";
+            sha256 = "0rf220rsfx10zlczgkfdvhk1gqq2gwlgysn7chd9nrc0jcj5yc7n";
+          };
+
+          cargoPatches = [ ./ci/cortex-m-quickstart-lock.patch ];
+          cargoSha256 = "16gmfq6v7qqa2xzshjbgpffygvf7nd5qn31m0b696rnwfj4rxlag";
+
+          buildType = "debug";
+          postBuild = ''
+            doCheck=true
+          ''; # nixpkgs cross builds force doCheck=false :(
+
+          nativeBuildInputs = [ channels.cipkgs.qemu ]; # this should be checkInputs but...
+          checkPhase = ''
+            sed -i -e 's/# runner = "qemu/runner = "qemu/' .cargo/config
+            cargo run -v --example hello
+          '';
+
+          meta.platforms = platforms.all;
         };
-
-        cargoPatches = [ ./ci/cortex-m-quickstart-lock.patch ];
-        cargoSha256 = "1l1js8lx0sfhfvf2dm64jpv4vsh4bvsyyqmcniq7w9z8hi52aixr";
-
-        buildType = "debug";
-        postBuild = ''
-          doCheck=true
-        ''; # nixpkgs cross builds force doCheck=false :(
-
-        nativeBuildInputs = [ channels.cipkgs.qemu ]; # this should be checkInputs but...
-        checkPhase = ''
-          sed -i -e 's/# runner = "qemu/runner = "qemu/' .cargo/config
-          cargo run -v --example hello
-        '';
-
-        meta.platforms = platforms.all;
       };
     };
   };
