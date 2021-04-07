@@ -14,6 +14,7 @@
 , cargoDepsHook ? ""
 , cargoBuildFlags ? []
 , buildType ? "release"
+, rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
 , ... }@args: let
   fetchCargo = if fetchCargoTarball == null || args.legacyCargoFetcher or false then fetchcargo else fetchCargoTarball;
@@ -42,7 +43,7 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
   PKG_CONFIG_ALLOW_CROSS =
     if stdenv.buildPlatform != stdenv.hostPlatform then 1 else 0;
   CARGO_TARGET_DIR = "target/cargo";
-  releaseDir = "${drv.CARGO_TARGET_DIR}/${rustChannel.lib.rustTargetFor stdenv.hostPlatform}/${buildType}";
+  releaseDir = "${drv.CARGO_TARGET_DIR}/${rustTarget}/${buildType}";
 
   inherit cargoDepsHook setupVendorDir;
   #postUnpackHooks =
@@ -92,7 +93,8 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
     cargo build \
       --frozen --verbose \
       $cargoBuildFlags \
-      ${lib.optionalString (buildType != "debug") "--${buildType}"}
+      ${lib.optionalString (buildType != "debug") "--${buildType}"} \
+      ${lib.optionalString (args ? rustTarget) "--target ${rustTarget}"}
 
     runHook postBuild
   '';
