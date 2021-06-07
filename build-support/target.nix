@@ -88,7 +88,7 @@ in {
   #  # TODO: targetOffset stuff?
   #};
 
-  rustSysroot = { lndir, stdenvNoCC, windows ? null }: { std ? [] }: with stdenvNoCC.lib; lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  rustSysroot = { lib, lndir, stdenvNoCC, windows ? null }: { std ? [] }: with lib; lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rust-sysroot";
     version = (builtins.head std).version;
     name = "rust-sysroot-${drv.version}";
