@@ -16,11 +16,15 @@
       };
     });
   };
+  releasesToTest = filterAttrs (_: channel:
+    # limit the releases tested due to disk space limitations when building/downloading
+    versionAtLeast channel.version "1.46"
+  ) channels.rust.releases;
 in {
   name = "nixexprs-rust";
   ci.gh-actions.enable = true;
   tasks = {
-    releases.inputs = mapAttrs (_: rustPackages) channels.rust.releases;
+    releases.inputs = mapAttrs (_: rustPackages) releasesToTest;
     impure.inputs = mapAttrs (_: rustPackages) {
       inherit (channels.rust) stable beta;
     };
