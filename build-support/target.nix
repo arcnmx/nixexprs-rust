@@ -342,15 +342,15 @@ in {
     '';
   });
 
-  wrapCargoBinutils = { stdenvNoCC, makeWrapper }: { inner, binutils }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  wrapCargoBinutils = { stdenvNoCC, makeWrapper }: { inner, bintools }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${inner.pname}-wrapped";
     inherit (inner) version meta;
 
     nativeBuildInputs = [ makeWrapper ];
-    buildInputs = [ inner binutils ];
+    buildInputs = [ inner bintools ];
 
     inner = lib.findInput drv.buildInputs inner;
-    binutils = lib.findInput drv.buildInputs binutils;
+    bintools = lib.findInput drv.buildInputs bintools;
 
     # $bintools/bin should contain: ar, nm, objcopy, objdump, profdata, readobj/readelf, size, strip, cov
     buildCommand = ''
@@ -359,17 +359,17 @@ in {
         filename=$(basename $binary)
         if [[ $filename = rust-* ]]; then
           toolname=''${filename#rust-}
-          target=$binutils/bin/$toolname
+          target=$bintool/bin/$toolname
           if [[ $toolname = readobj && -e $bintools/bin/readelf && ! -e $bintools/bin/readobj ]]; then
-            target=$binutils/bin/readelf
+            target=$bintools/bin/readelf
           fi
           [[ ! -L $target ]] || target=$(readlink -e $target)
           if [[ -e $target ]]; then
             ln $target $out/bin/$filename
-          elif [[ -e $binutils/bin/llvm-$toolname ]]; then
-            ln $binutils/bin/llvm-$toolname $out/bin/$filename
+          elif [[ -e $bintools/bin/llvm-$toolname ]]; then
+            ln $bintools/bin/llvm-$toolname $out/bin/$filename
           else
-            echo "$toolname not found in $binutils" >&2
+            echo "$toolname not found in $bintools" >&2
             exit 1
           fi
         else
