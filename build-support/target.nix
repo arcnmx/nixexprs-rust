@@ -5,8 +5,9 @@ in {
   rustTargetEnvironment = lib.makeOverridable ({
     pkgs ? null
   , stdenv ? pkgs.stdenv
-  , triple ? self.rustTargetFor stdenv.hostPlatform
-  , stdenvCc ? (if builtins.isString stdenv then pkgs.${stdenv} else stdenv).cc
+  , hostPlatform ? pkgs.hostPlatform or stdenv.hostPlatform
+  , triple ? self.rustTargetFor hostPlatform
+  , stdenvCc ? stdenv.cc
   , ar ? "${stdenvCc.bintools.bintools}/bin/${stdenvCc.targetPrefix}ar"
   , cc ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}cc"
   , cxx ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}c++"
@@ -19,7 +20,7 @@ in {
   , rustcFlags ?
     if triple == "i686-pc-windows-gnu" then [ "-C" "panic=abort" ] else [] # TODO: compile gcc without sjlj exceptions so this doesn't happen? or just compile libstd from source tbh, it shouldn't be that bad?
   }: {
-    inherit triple stdenv ar cc cxx linker linkerFlavor rustcFlags;
+    inherit triple stdenv hostPlatform ar cc cxx linker linkerFlavor rustcFlags;
   });
 
   targetForSystem = {
@@ -56,19 +57,21 @@ in {
     or platform.config;
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   # for gcc/cc-rs, the build support crate
-  rustCcEnv = { lib, stdenv }@cp: with lib; {
+  rustCcEnv = { lib, stdenv, hostPlatform ? stdenv.hostPlatform }@cp: with lib; {
     stdenv ? cp.stdenv
-  , target ? self.rustTargetEnvironment { inherit stdenv; }
+  , hostPlatform ? cp.hostPlatform
+  , target ? self.rustTargetEnvironment { inherit stdenv hostPlatform; }
   }: {
     ${mapNullable (_: "AR_${ccEnvVar target.triple}") target.ar} = target.ar;
     ${mapNullable (_: "CC_${ccEnvVar target.triple}") target.cc} = target.cc;
     ${mapNullable (_: "CXX_${ccEnvVar target.triple}") target.cxx} = target.cxx;
   };
 
-  cargoEnv = { lib, stdenv }@cp: with lib; {
+  cargoEnv = { lib, stdenv, hostPlatform ? stdenv.hostPlatform }@cp: with lib; {
     default ? false
   , stdenv ? cp.stdenv
-  , target ? self.rustTargetEnvironment { inherit stdenv; }
+  , hostPlatform ? cp.hostPlatform
+  , target ? self.rustTargetEnvironment { inherit stdenv hostPlatform; }
   }: let
     rustFlags = target.rustcFlags
       ++ optionals (target.linker != null) [ "-C" "linker-flavor=${target.linkerFlavor}" ];

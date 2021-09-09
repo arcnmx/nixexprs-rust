@@ -1,12 +1,12 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
-    stdenv, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
+    stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
   , channelOverlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
-    channelBuilder = { stdenv, pkgs, buildPackages, targetPackages, fetchcargo, fetchCargoTarball, buildRustCrate, rlib }: cself: {
+    channelBuilder = { stdenv, hostPlatform, targetPlatform, pkgs, buildPackages, targetPackages, fetchcargo, fetchCargoTarball, buildRustCrate, rlib }: cself: {
       manifestArgs = lib.optionalAttrs (rustToolchain != null) (rlib.parseRustToolchain rustToolchain) // {
         distRoot = rlib.distRoot;
       } // lib.retainAttrs args [ "date" "channel" "staging" ];
@@ -21,7 +21,7 @@
       manifest = rlib.manifestTargets (cself.manifestPath);
 
       context = {
-        inherit stdenv pkgs buildPackages targetPackages rlib;
+        inherit stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages rlib;
       };
 
       # Rough layout here:
@@ -39,10 +39,10 @@
       # TODO: use https://github.com/rust-lang/rustup-components-history/blob/master/README.md#the-web-part to decide what nightly to download if certain features are required?
       targetRustLld = false; # TODO: figure out which platforms rust currently uses rust-lld by default? Also this should just be part of the target spec or something, it needs to apply to host/build as well!
       # TODO: offer some way to use lld as the linker without having stdenv link the entire world with it?
-      hostTarget = rlib.rustTargetEnvironment { inherit stdenv; };
-      buildTarget = rlib.rustTargetEnvironment { inherit (buildPackages) stdenv; };
+      hostTarget = rlib.rustTargetEnvironment { inherit stdenv hostPlatform; };
+      buildTarget = rlib.rustTargetEnvironment { inherit (buildPackages) stdenv hostPlatform; };
       targetTarget = rlib.rustTargetEnvironment (
-        { inherit (targetPackages) stdenv; }
+        { inherit (targetPackages) stdenv hostPlatform; }
         // lib.optionalAttrs (cself.targetRustLld) { linker = null; }
       );
       tools = cself.manifest.targetForPlatform cself.hostTarget.triple;
@@ -144,16 +144,16 @@
 
       # buildPackages and targetPackages variants
       buildChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (buildPackages) stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+        inherit (buildPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
         rlib = rlib.buildLib;
       });
       targetChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (targetPackages) stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+        inherit (targetPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
         rlib = rlib.targetLib;
       });
     };
   in makeExtensibleChannel channelOverlays (channelBuilder {
-    inherit stdenv pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+    inherit stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
     rlib = self;
   })) { };
 }
