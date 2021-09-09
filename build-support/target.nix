@@ -270,15 +270,15 @@ in {
     '';
   });
 
-  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer ? null, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer-unwrapped ? null, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rust-analyzer-wrapped";
-    version = rust-analyzer.version or "unknown";
+    version = rust-analyzer-unwrapped.version or "unknown";
 
     nativeBuildInputs = [ makeWrapper ];
-    buildInputs = [ rust-src rust-analyzer ];
+    buildInputs = [ rust-src rust-analyzer-unwrapped ];
 
     rustcSrc = lib.findInput drv.buildInputs rust-src;
-    rustAnalyzer = lib.findInput drv.buildInputs rust-analyzer;
+    rustAnalyzer = lib.findInput drv.buildInputs rust-analyzer-unwrapped;
 
     buildCommand = ''
       mkdir -p $out/bin
@@ -286,8 +286,8 @@ in {
         --set-default RUST_SRC_PATH "$rustcSrc"
     '';
 
-    meta = rust-analyzer.meta or {} // {
-      broken = rust-analyzer == null || rust-analyzer.meta.broken or false;
+    meta = rust-analyzer-unwrapped.meta or {} // {
+      broken = rust-analyzer-unwrapped == null || rust-analyzer-unwrapped.meta.broken or false;
     };
   });
 
