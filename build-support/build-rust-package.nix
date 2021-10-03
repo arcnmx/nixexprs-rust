@@ -17,6 +17,8 @@
 , rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
 , cargoLock ? null
+, checkType ? buildType
+, buildAndTestSubdir ? "."
 , depsExtraArgs ? { }
 , ... }@args: let
   fetchCargo = if fetchCargoTarball == null || args.legacyCargoFetcher or false then fetchcargo else fetchCargoTarball;
@@ -49,7 +51,7 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate filteredArgs {
   CARGO_TARGET_DIR = "target/cargo";
   releaseDir = "${drv.CARGO_TARGET_DIR}/${rustTarget}/${buildType}";
 
-  inherit cargoDepsHook setupVendorDir;
+  inherit cargoDepsHook setupVendorDir buildAndTestSubdir;
   #postUnpackHooks =
   #  lib.optional (cargoDepsHook != "") "cargoDepsHook"
   #  ++ [ "setupVendorDir" ];
@@ -57,18 +59,20 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate filteredArgs {
     eval "$cargoDepsHook"
     eval "$setupVendorDir"
 
-    mkdir .cargo
+    mkdir $sourceRoot/$buildAndTestSubdir/.cargo
     config="$(pwd)/$cargoDepsCopy/.cargo/config"
     if [[ ! -e $config ]]; then
       config=${path + "/pkgs/build-support/rust/fetchcargo-default-config.toml"}
     fi
-    substitute $config .cargo/config \
+    substitute $config $sourceRoot/$buildAndTestSubdir/.cargo/config \
       --subst-var-by vendor "$(pwd)/$cargoDepsCopy" \
       --replace cargo-vendor-dir "$(pwd)/$cargoDepsCopy"
   '';
 
 
   configurePhase = args.configurePhase or ''
+    cd $buildAndTestSubdir
+
     runHook preConfigure
 
     export RUST_LOG=$logLevel
@@ -107,7 +111,8 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate filteredArgs {
   checkPhase = args.checkPhase or ''
     runHook preCheck
     echo "Running cargo test"
-    cargo test
+    cargo test \
+      ${lib.optionalString (buildType != "debug") "--${checkType}"}
     runHook postCheck
   '';
 
