@@ -63,6 +63,13 @@
       rustc-unwrapped = cself.tools.rustc;
       cargo-unwrapped = cself.tools.cargo;
       rust-src = rlib.wrapRustSrc { inherit (cself.tools) rust-src; };
+      std = (rlib.libstd.override {
+        inherit (cself.rustPlatform) buildRustPackage;
+        inherit (cself.buildChannel) cargo-unwrapped;
+      }) {
+        inherit (cself) rustcSrc;
+        rustTarget = cself.hostTarget.triple;
+      };
       rust-sysroot = rlib.rustSysroot {
         std = cself.sysroot-std;
       };

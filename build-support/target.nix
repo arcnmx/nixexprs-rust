@@ -91,6 +91,125 @@ in {
   #  # TODO: targetOffset stuff?
   #};
 
+  libstd = { lib, stdenvNoCC, rustPlatform, cargo-unwrapped ? rustPlatform.cargo, buildRustPackage ? rustPlatform.buildRustPackage }: { rustcSrc, rustTarget ? self.rustTargetFor stdenvNoCC.hostPlatform }: with lib; let
+    cargoToml = ''
+      [workspace]
+      exclude = [
+        'stdarch',
+        'test/rustdoc-gui',
+      ]
+      members = [
+        'std',
+        'test',
+      ]
+      #[profile.release.package.compiler_builtins]
+      #debug-assertions = false
+      #overflow-checks = false
+      #codegen-units = 10000
+
+      [profile.release.package]
+      addr2line.debug = 0
+      adler.debug = 0
+      gimli.debug = 0
+      miniz_oxide.debug = 0
+      object.debug = 0
+
+      [patch.crates-io]
+      rustc-std-workspace-core = { path = 'rustc-std-workspace-core' }
+      rustc-std-workspace-alloc = { path = 'rustc-std-workspace-alloc' }
+      rustc-std-workspace-std = { path = 'rustc-std-workspace-std' }
+    '';
+    workspace = stdenvNoCC.mkDerivation {
+      pname = "rustc-std-workspace";
+      version = rustcSrc.version;
+      src = rustcSrc;
+      sourceRoot = rustcSrc.name;
+      nativeBuildInputs = [ cargo-unwrapped ];
+
+      inherit cargoToml;
+      passAsFile = [ "cargoToml" ];
+      buildPhase = ''
+        runHook preBuild
+
+        cp $cargoTomlPath Cargo.toml
+
+        cat >> Cargo.toml <<EOF
+        [workspace]
+        exclude = [
+          'stdarch',
+          'test/rustdoc-gui',
+        ]
+        members = [
+          'std',
+          'test',
+        EOF
+        #for crate in */Cargo.toml; do
+        #  crate=$(dirname $crate)
+        #  if [[ $crate != backtrace && $crate != stdarch && $crate != unwind ]]; then
+        #    echo whee $crate
+        #    echo "'$crate'," >> Cargo.toml
+        #  fi
+        #done
+        echo "]" >> Cargo.toml
+
+        mv Cargo.lock{,.bak}
+        cat Cargo.lock.bak > Cargo.lock
+
+        cargo generate-lockfile --offline
+
+        runHook postBuild
+      '';
+
+      installPhase = ''
+        runHook preInstall
+        mkdir $out
+        mv * $out/
+        runHook postInstall
+      '';
+    };
+  in lib.drvRec (drv: buildRustPackage {
+    pname = "rust-libstd";
+    version = rustcSrc.version;
+
+    src = rustcSrc;
+    sourceRoot = rustcSrc.name;
+    cargoLock = {
+      #lockFile = "${workspace}/Cargo.lock";
+      lockFile = "${rustcSrc}/Cargo.lock";
+    };
+    #buildAndTestSubdir = "rustc-std-workspace-std";
+    #buildAndTestSubdir = "rustc-std-workspace-std";
+    #buildAndTestSubdir = "core";
+    #cargoBuildFlags / cargoTestFlags
+
+    inherit rustTarget;
+    inherit cargoToml;
+    passAsFile = [ "cargoToml" ];
+    cargoBuildFlags = [ "-p" "std" ];
+
+    RUSTFLAGS = "-Z force-unstable-if-unmarked";
+
+    preConfigure = ''
+      cp $cargoTomlPath Cargo.toml
+      cp --remove-destination --no-preserve=mode $(readlink Cargo.lock) Cargo.lock
+      cargo generate-lockfile --offline
+    '';
+    __CARGO_DEFAULT_LIB_METADATA = "weh";
+    RUSTC_BOOTSTRAP = true;
+
+    installPhase = ''
+      runHook preInstall
+
+      install -Dm0644 -t $out/lib/rustlib/$rustTarget/lib $releaseDir/deps/*.rlib $releaseDir/deps/*.dylib
+
+      runHook postInstall
+    '';
+
+    doCheck = false;
+
+    #cargoSha256 = "";
+  });
+
   rustSysroot = { lib, lndir, stdenvNoCC, windows ? null }: { std ? [] }: with lib; lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rust-sysroot";
     version = (builtins.head std).version;
@@ -246,21 +365,25 @@ in {
     '';
   });
 
-  wrapRustSrc = { stdenvNoCC }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  wrapRustSrc = { stdenvNoCC, lndir }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${rust-src.pname}-wrapped";
     inherit (rust-src) version;
 
     buildInputs = [ rust-src ];
+    nativeBuildInputs = [ lndir ];
 
     rustcSrc = lib.findInput drv.buildInputs rust-src;
 
     buildCommand = ''
       install -d $out
       if [[ -d $rustcSrc/lib/rustlib/src/rust/src ]]; then
-        ln -s $rustcSrc/lib/rustlib/src/rust/src/* $out/
+        lndir -silent $rustcSrc/lib/rustlib/src/rust/src $out/
       fi
       if [[ -d $rustcSrc/lib/rustlib/src/rust/library ]]; then
-        ln -s $rustcSrc/lib/rustlib/src/rust/library/* $out/
+        lndir -silent $rustcSrc/lib/rustlib/src/rust/library $out/
+      fi
+      if [[ -e $rustcSrc/lib/rustlib/src/rust/Cargo.lock ]]; then
+        ln -s $rustcSrc/lib/rustlib/src/rust/Cargo.lock $out/
       fi
     '';
 
