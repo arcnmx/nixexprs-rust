@@ -411,12 +411,12 @@ in {
     };
   });
 
-  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo ? null, fetchCargoTarball ? null }: { cargo, rustc, rust-src }: makeRustPlatform {
+  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo ? null, fetchCargoTarball ? null, importCargoLock ? null }: { cargo, rustc, rust-src }: makeRustPlatform {
     inherit cargo rustc;
   } // {
     rustcSrc = rust-src;
     buildRustPackage = self.buildRustPackage.override {
-      inherit path lib stdenv fetchcargo fetchCargoTarball rustc cargo;
+      inherit path lib stdenv fetchcargo fetchCargoTarball importCargoLock rustc cargo;
     };
   };
 }

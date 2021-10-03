@@ -1,4 +1,4 @@
-{ path, lib, rustChannel, stdenv, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, windows ? null, buildPackages }: {
+{ path, lib, rustChannel, stdenv, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, importCargoLock ? null, windows ? null, buildPackages }: {
   name ? "${args.pname}-${args.version}"
 , cargoSha256 ? lib.fakeSha256
 , src ? null
@@ -16,14 +16,17 @@
 , buildType ? "release"
 , rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
+, cargoLock ? null
+, depsExtraArgs ? { }
 , ... }@args: let
   fetchCargo = if fetchCargoTarball == null || args.legacyCargoFetcher or false then fetchcargo else fetchCargoTarball;
   cargoDeps = if cargoVendorDir == null
-    then fetchCargo {
+    then if cargoLock != null then importCargoLock cargoLock
+    else fetchCargo ({
       inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
       patches = cargoPatches;
       sha256 = cargoSha256;
-    } else null;
+    } // depsExtraArgs) else null;
   setupVendorDir = if cargoVendorDir == null
     then ''
       unpackFile $cargoDeps
@@ -32,7 +35,8 @@
     '' else ''
       cargoDepsCopy="$sourceRoot/$cargoVendorDir"
     '';
-in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
+  filteredArgs = removeAttrs args [ "depsExtraArgs" "cargoLock" ];
+in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate filteredArgs {
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
   nativeBuildInputs = [ cargo rustc ] ++ nativeBuildInputs;
   buildInputs = buildInputs ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
@@ -59,7 +63,8 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
       config=${path + "/pkgs/build-support/rust/fetchcargo-default-config.toml"}
     fi
     substitute $config .cargo/config \
-      --subst-var-by vendor "$(pwd)/$cargoDepsCopy"
+      --subst-var-by vendor "$(pwd)/$cargoDepsCopy" \
+      --replace cargo-vendor-dir "$(pwd)/$cargoDepsCopy"
   '';
 
 
