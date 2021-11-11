@@ -14,10 +14,11 @@
 , cargoDepsHook ? ""
 , cargoBuildFlags ? []
 , buildType ? "release"
+, legacyCargoFetcher ? fetchCargoTarball == null && fetchcargo != null
 , rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
 , ... }@args: let
-  fetchCargo = if fetchCargoTarball == null || args.legacyCargoFetcher or false then fetchcargo else fetchCargoTarball;
+  fetchCargo = if legacyCargoFetcher then fetchcargo else fetchCargoTarball;
   cargoDeps = if cargoVendorDir == null
     then fetchCargo {
       inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
@@ -32,8 +33,9 @@
     '' else ''
       cargoDepsCopy="$sourceRoot/$cargoVendorDir"
     '';
-in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
+in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
+  ${if legacyCargoFetcher && builtins.pathExists patchRegistryDeps then "patchRegistryDeps" else null} = patchRegistryDeps;
   nativeBuildInputs = [ cargo rustc ] ++ nativeBuildInputs;
   buildInputs = buildInputs ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
   inherit cargoDeps;
