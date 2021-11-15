@@ -91,23 +91,24 @@ in {
   #  # TODO: targetOffset stuff?
   #};
 
-  rustSysroot = { lib, lndir, stdenvNoCC, windows ? null }: { std ? [] }: with lib; lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  rustSysroot = { lib, lndir, stdenvNoCC, windows ? null }: { std ? [], dev ? [] }: with lib; lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rust-sysroot";
     version = (builtins.head std).version;
     name = "rust-sysroot-${drv.version}";
 
     preferLocalBuild = true;
     nativeBuildInputs = [ lndir ];
-    buildInputs = toList std;
+    buildInputs = toList std ++ toList dev;
     propagatedBuildInputs = optional (any (std: std.stdenv.hostPlatform.config == "i686-pc-mingw32") std) (windows.mingw_w64_pthreads.overrideAttrs (_: { dontDisableStatic = true; })); # TODO: https://github.com/rust-lang/rust/blob/4268e7ee22935f086b856ef0063a9e22b49aeddb/src/libunwind/build.rs#L35 insists on trying to link this statically...
     # TODO: also need to change gcc to build with --disable-sjlj-exceptions: https://github.com/NixOS/nixpkgs/blob/1ca86b405699183ff2b00be42281a81ea1744f41/pkgs/development/compilers/gcc/7/default.nix#L99
 
     std = lib.findInput drv.buildInputs std;
+    rustcDev = lib.findInput drv.buildInputs dev;
 
     unpackPhase = "true";
     installPhase = ''
       mkdir -p $out/nix-support
-      for dir in $std; do
+      for dir in $std $rustcDev; do
         lndir -silent $dir $out
       done
     '';

@@ -2,6 +2,7 @@
   distChannel = pkgs.callPackage ({
     stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
+  , rustcDev ? false # include "rustc-dev" component in sysroot
   , channelOverlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
@@ -60,11 +61,17 @@
 
       # rust
       sysroot-std = lib.unique [ cself.hostTools.rust-std cself.buildTools.rust-std cself.targetTools.rust-std ];
+      sysroot-dev = let
+        tools = [ cself.hostTools.rustc-dev cself.buildTools.rustc-dev cself.targetTools.rustc-dev ];
+      in lib.optionals rustcDev (
+        lib.unique (lib.filter (t: t.meta.broken or false != true) tools)
+      );
       rustc-unwrapped = cself.tools.rustc;
       cargo-unwrapped = cself.tools.cargo;
       rust-src = rlib.wrapRustSrc { inherit (cself.tools) rust-src; };
       rust-sysroot = rlib.rustSysroot {
         std = cself.sysroot-std;
+        dev = cself.sysroot-dev;
       };
       rustc = rlib.wrapRustc {
         rustc = cself.rustc-unwrapped;
