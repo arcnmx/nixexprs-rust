@@ -2,7 +2,7 @@
   distChannel = pkgs.callPackage ({
     stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
-  , rustcDev ? channel == "nightly" # include "rustc-dev" component in sysroot
+  , rustcDev ? false # include "rustc-dev" component in sysroot
   , channelOverlays ? []
   }@args: let
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
