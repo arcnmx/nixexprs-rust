@@ -363,15 +363,17 @@ in {
         filename=$(basename $binary)
         if [[ $filename = rust-* ]]; then
           toolname=''${filename#rust-}
-          target=$bintool/bin/$toolname
+          target=$bintools/bin/$toolname
           if [[ $toolname = readobj && -e $bintools/bin/readelf && ! -e $bintools/bin/readobj ]]; then
             target=$bintools/bin/readelf
           fi
           [[ ! -L $target ]] || target=$(readlink -e $target)
           if [[ -e $target ]]; then
-            ln $target $out/bin/$filename
+            ln -s $target $out/bin/$filename
           elif [[ -e $bintools/bin/llvm-$toolname ]]; then
-            ln $bintools/bin/llvm-$toolname $out/bin/$filename
+            ln -s $bintools/bin/llvm-$toolname $out/bin/$filename
+          elif [[ $toolname = ld ]] || [[ $toolname = lld ]]; then
+            true
           else
             echo "$toolname not found in $bintools" >&2
             exit 1
