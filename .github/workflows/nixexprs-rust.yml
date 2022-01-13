@@ -132,7 +132,7 @@ jobs:
         stdin: ${{ runner.temp }}/ci.build.cache
   stable-mac:
     name: nixexprs-rust-stable-mac
-    runs-on: macOS-latest
+    runs-on: macos-10.15
     steps:
     - id: checkout
       name: git clone
@@ -234,7 +234,7 @@ jobs:
         stdin: ${{ runner.temp }}/ci.build.cache
   unstable-mac:
     name: nixexprs-rust-unstable-mac
-    runs-on: macOS-latest
+    runs-on: macos-10.15
     steps:
     - id: checkout
       name: git clone
