@@ -53,7 +53,7 @@ in {
   jobs = listToAttrs (flip crossLists [ # build matrix
     [ # channels
       { nixpkgs = "unstable"; }
-      { nixpkgs = "20.09"; name = "stable"; }
+      { nixpkgs = "21.11"; name = "stable"; }
     ] [ # systems
       { system = "x86_64-linux"; }
       { system = "x86_64-darwin"; postfix = "-mac"; }
@@ -61,6 +61,7 @@ in {
   ] ({ nixpkgs, name ? nixpkgs }: { system, postfix ? "" }: nameValuePair "${name}${postfix}" {
     inherit system;
     channels = { inherit nixpkgs; };
+    warn = system == "x86_64-darwin";
   })) // {
     cross-arm = { channels, pkgs, ... }: {
       system = "x86_64-linux";
