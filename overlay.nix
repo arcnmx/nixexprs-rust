@@ -17,6 +17,8 @@ let overlay = self: super: with super.lib; let
     beta = rself.distChannel { channel = "beta"; };
     stable = rself.distChannel { channel = "stable"; };
 
+    latest = rself.releases.${lib.last (lib.attrNames rself.releases)};
+
     releaseHashes = {
       "1.36.0" = "1w2xs3ys2lxhs8l64npb2hmbd4sl0nh22ivlly5xf84q5q2k2djd";
       "1.37.0" = "15619sgfcy703aj5hk2w9lxvn2ccg99rdlhafi52z8rpbg6z32jp";
