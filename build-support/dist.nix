@@ -136,28 +136,28 @@ in {
             if [[ $line = file:* ]]; then
               path=''${line#file:}
               opath=$(outpath $path)
-              mkdir -p $cout/$(dirname $opath)
-              mv $component/$path $cout/$opath
+              mkdir -p "$cout/$(dirname "$opath")"
+              mv "$component/$path" "$cout/$opath"
               if [[ $path = bin/* ]]; then
-                chmod +x $cout/$opath
+                chmod +x "$cout/$opath"
               fi
             elif [[ $line = dir:* ]]; then
               path=''${line#dir:}
               opath=$(outpath $path)
-              if [[ ! -d $cout/$opath ]]; then
-                mkdir -p $cout/$(dirname $opath)
-                mv $component/$path $cout/$opath
+              if [[ ! -d "$cout/$opath" ]]; then
+                mkdir -p "$cout/$(dirname "$opath")"
+                mv "$component/$path" "$cout/$opath"
               else
                 while IFS= read -r -d "" file; do
                   ofile=$(outpath $file)
-                  if [[ -d $component/$file ]]; then
-                    mkdir -p $cout/$ofile
+                  if [[ -d "$component/$file" ]]; then
+                    mkdir -p "$cout/$ofile"
                   else
-                    mkdir -p $cout/$(dirname $ofile)
-                    mv $component/$file $cout/$ofile
+                    mkdir -p "$cout/$(dirname "$ofile")"
+                    mv "$component/$file" "$cout/$ofile"
                     # TODO: chmod bin/?
                   fi
-                done < <(cd $component && find $path -print0)
+                done < <(cd "$component" && find $path -print0)
               fi
             else
               echo "unknown command $line"
