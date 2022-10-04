@@ -55,6 +55,7 @@ let overlay = self: super: with super.lib; let
       "1.62.0" = "sha256-AoqjoLifz8XrZWP7piauFfWCvhzPMLKxfv57h6Ng1oM=";
       "1.62.1" = "sha256-Et8XFyXhlf5OyVqJkxrmkxv44NRN54uU2CLUTZKUjtM=";
       "1.63.0" = "sha256-KXx+ID0y4mg2B3LHp7IyaiMrdexF6octADnAtFIOjrY=";
+      "1.64.0" = "sha256-8len3i8oTwJSOJZMosGGXHBL5BVuGQnWOT2St5YAUFU=";
     };
 
     releases = lib.mapAttrs (channel: sha256: rself.distChannel {
