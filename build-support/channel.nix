@@ -121,8 +121,9 @@
         inherit (cself.tools) rls;
         inherit (cself) rls-sysroot rustc;
       };
+      rust-analyzer-unwrapped = cself.tools.rust-analyzer or pkgs.rust-analyzer-unwrapped;
       rust-analyzer = rlib.wrapRustAnalyzer {
-        inherit (cself) rust-src;
+        inherit (cself) rust-src rust-analyzer-unwrapped;
       };
 
       # build support

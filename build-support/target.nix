@@ -271,7 +271,7 @@ in {
     '';
   });
 
-  wrapRustAnalyzer = { stdenvNoCC, rust-analyzer-unwrapped ? null, makeWrapper }: { rust-src }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
+  wrapRustAnalyzer = { stdenvNoCC, makeWrapper }: { rust-src, rust-analyzer-unwrapped }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "rust-analyzer-wrapped";
     version = rust-analyzer-unwrapped.version or "unknown";
 
