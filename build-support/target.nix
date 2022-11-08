@@ -121,7 +121,10 @@ in {
 
   wrapRustc = { stdenvNoCC, makeWrapper }: { rustc, sysroot ? null, ... }@args: lib.drvRec (drv: stdenvNoCC.mkDerivation ({
     pname = "rustc-wrapped";
-    inherit (rustc) version meta;
+    inherit (rustc) version;
+    meta = rustc.meta // {
+      meta.mainProgram = "rustc";
+    };
 
     preferLocalBuild = true;
     nativeBuildInputs = [ makeWrapper ];
@@ -170,7 +173,10 @@ in {
 
   wrapCargo = { stdenvNoCC, makeWrapper }: { rustc, cargo, cargoEnv ? { }, ... }@args: lib.drvRec (drv: stdenvNoCC.mkDerivation ({
     pname = "cargo-wrapped";
-    inherit (cargo) version meta;
+    inherit (cargo) version;
+    meta = cargo.meta // {
+      meta.mainProgram = "cargo";
+    };
 
     preferLocalBuild = true;
     nativeBuildInputs = [ makeWrapper ];
@@ -233,7 +239,10 @@ in {
 
   wrapTargetBin = { stdenvNoCC }: { target, inner }: lib.drvRec (drv: stdenvNoCC.mkDerivation {
     pname = "${inner.pname}-wrapped";
-    inherit (inner) version meta;
+    inherit (inner) version;
+    meta = inner.meta // {
+      mainProgram = inner.meta.mainProgram or inner.pname;
+    };
 
     buildInputs = [ inner ];
 
@@ -288,6 +297,7 @@ in {
     '';
 
     meta = rust-analyzer-unwrapped.meta or {} // {
+      mainProgram = "rust-analyzer";
       broken = rust-analyzer-unwrapped == null || rust-analyzer-unwrapped.meta.broken or false;
     };
   });
@@ -410,6 +420,7 @@ in {
     '';
 
     meta = miri.meta or {} // {
+      mainProgram = "cargo-miri";
       broken = miri.broken or false || xargo == null;
     };
   });
