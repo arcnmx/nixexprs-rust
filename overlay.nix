@@ -1,5 +1,6 @@
 let overlay = self: super: with super.lib; let
   lib = super.lib.extend (import ./lib);
+  impure = builtins ? currentSystem;
   rustChannel = lib.makeOrExtend super "rustChannel" (rself: rsuper: {
     lib = lib.makeOrExtend rsuper "lib" (lself: lsuper: import ./build-support {
       self = lself; super = lsuper;
@@ -13,9 +14,9 @@ let overlay = self: super: with super.lib; let
 
     distChannel = rself.lib.distChannel.override;
 
-    nightly = rself.distChannel { channel = "nightly"; };
-    beta = rself.distChannel { channel = "beta"; };
-    stable = rself.distChannel { channel = "stable"; };
+    ${if impure then "nightly" else null} = rself.distChannel { channel = "nightly"; };
+    ${if impure then "beta" else null} = rself.distChannel { channel = "beta"; };
+    ${if impure then "stable" else null} = rself.distChannel { channel = "stable"; };
 
     latest = rself.releases.${lib.last (lib.attrNames rself.releases)};
 
@@ -98,4 +99,4 @@ in fetchcargos // {
         rself.manifest.targets.${target}.rust-std
       ) targets;
     });
-}; in overlay
+}; in final: prev: overlay final prev
