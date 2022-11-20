@@ -48,6 +48,8 @@ in {
     armv6l-unknown-linux-gnueabihf = "arm-unknown-linux-gnueabihf";
     armv6l-unknown-linux-musleabi = "arm-unknown-linux-musleabi";
     armv6l-unknown-linux-musleabihf = "arm-unknown-linux-musleabihf";
+    armv7l-unknown-linux-gnueabihf = "armv7-unknown-linux-gnueabihf";
+    riscv64-unknown-linux-gnu = "riscv64gc-unknown-linux-gnu";
   };
 
   rustTargetFor = platform:
