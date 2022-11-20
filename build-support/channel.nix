@@ -5,6 +5,10 @@
   , rustcDev ? false # include "rustc-dev" component in sysroot
   , channelOverlays ? []
   }@args: let
+    broken = name: pkgs.runCommand name {
+      version = "0";
+      meta.broken = true;
+    } "echo tool ${name} missing from ${hostPlatform.config} >&2";
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
     channelBuilder = { stdenv, hostPlatform, targetPlatform, pkgs, buildPackages, targetPackages, fetchcargo, fetchCargoTarball, buildRustCrate, rlib }: cself: {
@@ -46,6 +50,8 @@
         { inherit (targetPackages) stdenv hostPlatform; }
         // lib.optionalAttrs (cself.targetRustLld) { linker = null; }
       );
+      available = cself.manifest.targets ? ${cself.hostTarget.triple};
+      toolsAvailable = cself.available && isAvailable cself.tools "rustc";
       tools = cself.manifest.targetForPlatform cself.hostTarget.triple;
       hostTools = cself.tools; # alias necessary?
       buildTools = cself.buildChannel.tools;
@@ -66,8 +72,8 @@
       in lib.optionals rustcDev (
         lib.unique (lib.filter (t: t != null && t.meta.broken or false != true) tools)
       );
-      rustc-unwrapped = cself.tools.rustc;
-      cargo-unwrapped = cself.tools.cargo;
+      rustc-unwrapped = cself.tools.rustc or (broken "rustc");
+      cargo-unwrapped = cself.tools.cargo or (broken "cargo");
       rust-src = rlib.wrapRustSrc { inherit (cself.tools) rust-src; };
       rust-sysroot = rlib.rustSysroot {
         std = cself.sysroot-std;
@@ -108,17 +114,20 @@
       lldb = rlib.wrapGdb.override { gdb = cself.lldb-unwrapped; } {
         inherit (cself) rustc-unwrapped;
       };
+      miri-unwrapped = cself.tools.miri or cself.tools.miri-preview or (broken "miri");
       miri = rlib.wrapMiri.override { xargo = pkgs.xargo-unwrapped or pkgs.xargo or null; } {
-        inherit (cself.tools) miri;
+        miri = cself.miri-unwrapped;
         inherit (cself) rust-src rustc cargo;
       };
-      inherit (cself.tools) clippy rustfmt;
+      rustfmt = cself.tools.rustfmt or (if isAvailable cself.tools "rustfmt-preview" then cself.tools.rustfmt-preview else pkgs.rustfmt);
+      clippy = cself.tools.clippy or (if isAvailable cself.tools "clippy-preview" then cself.tools.clippy-preview else pkgs.clippy);
       rls-sysroot = rlib.wrapRlsSysroot {
         inherit (cself.tools) rust-src rust-analysis;
         inherit (cself) rust-sysroot;
       };
+      rls-unwrapped = cself.tools.rls or (broken "rls");
       rls = rlib.wrapRls {
-        inherit (cself.tools) rls;
+        rls = cself.rls-unwrapped;
         inherit (cself) rls-sysroot rustc;
       };
       rust-analyzer-unwrapped = cself.tools.rust-analyzer or pkgs.rust-analyzer-unwrapped;
