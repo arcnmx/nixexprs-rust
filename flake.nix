@@ -83,14 +83,15 @@
           -- ${nixlib.escapeShellArgs rustfmtArgs} | tee $out
       '';
 
-      check-generate = { runCommandLocal, diffutils }:
+      check-generate = { runCommand, diffutils }:
       { name ? self.lib.srcName "generate-check" expected
       , expected
       , src
       , meta ? { name = "diff ${builtins.baseNameOf (toString src)}"; }
       , nativeBuildInputs ? [ diffutils ]
       , ...
-      }@args: runCommandLocal name ({
+      }@args: runCommand name ({
+        preferLocalBuild = true;
         inherit nativeBuildInputs;
         inherit meta;
       } // args) ''
