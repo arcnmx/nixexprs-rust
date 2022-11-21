@@ -52,9 +52,9 @@
       legacyPackages = self.legacyPackages.${system};
       filterBroken = nixlib.filterAttrs (_: c: c.toolsAvailable);
       channels = {
-        inherit (legacyPackages) latest;
+        inherit (legacyPackages) latest stable;
       } // nixlib.optionalAttrs impure {
-        inherit (legacyPackages) stable beta nightly;
+        inherit (legacyPackages) beta nightly;
       } // filterBroken legacyPackages.releases;
       channelShells = builtins.mapAttrs (_: c: c.mkShell { }) channels;
     in {

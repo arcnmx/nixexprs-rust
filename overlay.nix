@@ -16,7 +16,9 @@ let overlay = self: super: with super.lib; let
 
     ${if impure then "nightly" else null} = rself.distChannel { channel = "nightly"; };
     ${if impure then "beta" else null} = rself.distChannel { channel = "beta"; };
-    ${if impure then "stable" else null} = rself.distChannel { channel = "stable"; };
+    stable = if impure
+      then rself.distChannel { channel = "stable"; }
+      else rself.latest;
 
     latest = rself.releases.${lib.last (lib.attrNames rself.releases)};
 
