@@ -275,6 +275,7 @@
       in {
         path
       , parent ? null
+      , globalIgnore ? [ "/.cargo/" "/.github/" ".direnv" ".envrc" "*.nix" "flake.lock" ]
       }: let
         paths = if baseNameOf path == "Cargo.toml" then {
           cargoTomlFile = path;
@@ -284,36 +285,42 @@
           root = path;
         };
         gitignore = paths.root + "/.gitignore";
+        globalGitignoreString = concatStringsSep "\n" globalIgnore;
         cargoLockFile = if parent != null then parent.cargoLockFile else paths.root + "/Cargo.lock";
         cargoToml = importTOML paths.cargoTomlFile;
         crate = cargoToml // {
           inherit (paths) root cargoTomlFile;
           inherit parent cargoLockFile;
           workspaces = mapAttrs (_: path: importCargo' {
-            inherit path;
+            inherit path globalIgnore;
             parent = crate;
           }) crate.workspaceFiles;
           workspaceFiles = genAttrs crate.workspace.members or [ ] (w: crate.root + "/${w}");
           filter = let
             noopFilter = _: _: true;
-            baseExcludes = [ "${toString crate.root}/target" ];
+            defaultFilter = if pathExists (path.root + "/.git")
+              then noopFilter
+              else path: type: ! hasPrefix "." (baseNameOf path);
+            baseExcludes = [ "${toString crate.root}/target" "${toString crate.root}/.git" ];
             baseExclude = path: type: type != "directory" || ! (
-              elem (toString path) baseExcludes || baseNameOf path == ".git" || isSubpackage path
+              elem path baseExcludes || isSubpackage path
             );
             baseIncludes = [ "${toString crate.root}/Cargo.toml" "${toString crate.root}/Cargo.lock" ]
               ++ optional (crate ? package.license-file) crate.package.license-file
               ++ optional (crate ? package.readme) crate.package.readme;
             baseInclude = path: type: type == "regular" && (
-              elem (toString path) baseIncludes
+              elem path baseIncludes
             );
             dirIncludes = map (r: toString (crate.root + "/${r}")) (concatMap (rule: superrule crate.root (dirOf rule)) crate.package.include or [ ]);
             dirInclude = path: type: type == "directory" && elem path dirIncludes;
             include =
-              if crate ? package.include then
-                nix-gitignore.gitignoreFilterPure noopFilter (negateInclude crate.root crate.package.include) crate.root
-              else if pathExists gitignore then
-                nix-gitignore.gitignoreFilterPure noopFilter (readFile gitignore) crate.root
-              else path: type: ! hasPrefix "." (baseNameOf path);
+              if crate ? package.include then nix-gitignore.gitignoreFilterPure noopFilter (
+                negateInclude crate.root crate.package.include
+              ) crate.root else if pathExists gitignore then nix-gitignore.gitignoreFilterPure noopFilter (
+                globalGitignoreString + "\n" + readFile gitignore
+              ) crate.root else nix-gitignore.gitignoreFilterPure defaultFilter (
+                globalGitignoreString
+              ) crate.root;
             exclude =
               if crate ? package.exclude then
                 nix-gitignore.gitignoreFilterPure baseExclude crate.package.exclude crate.root
