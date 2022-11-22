@@ -22,14 +22,15 @@
       hasPrefix removePrefix removeSuffix escape concatMapStringsSep concatStringsSep
       singleton flatten elem filter any concatLists concatMap
       genAttrs mapAttrsToList filterAttrs
-      optional optionalString optionalAttrs flip
-      escapeShellArg escapeShellArgs
+      optional optionals optionalString optionalAttrs flip
+      escapeShellArg
       cleanSourceWith importTOML
     ;
     inherit (self.lib)
-      srcName crateName
+      srcName crateName stripDot
       escapePattern
     ;
+    escapeShellArgs = args: nixlib.escapeShellArgs (map (s: "${s}") args);
   in {
     legacyPackages = forSystems (system: let
       pkgs = nixpkgs.legacyPackages.${system};
@@ -88,16 +89,17 @@
       , meta ? { name = "cargo fmt"; }
       , nativeBuildInputs ? [ cargo rustfmt ]
       , manifestPath ? "Cargo.toml"
+      , config ? null
       , cargoFmtArgs ? [ ]
-      , rustfmtArgs ? [ ]
+      , rustfmtArgs ? optionals (config != null) [ "--config-path" (stripDot config) ]
       , ...
       }@args: runCommand name ({
         allowSubstitutes = false;
         inherit meta manifestPath nativeBuildInputs;
         passthru = args.passthru or { } // {
-          inherit cargoFmtArgs rustfmtArgs;
+          inherit config cargoFmtArgs rustfmtArgs;
         };
-      } // removeAttrs args [ "name" "cargoFmtArgs" "rustfmtArgs" ]) ''
+      } // removeAttrs args [ "name" "config" "cargoFmtArgs" "rustfmtArgs" ]) ''
         cargo fmt --check \
           ${escapeShellArgs cargoFmtArgs} \
           --manifest-path "$src/$manifestPath" \
@@ -239,8 +241,18 @@
       srcName = prefix: src: let
         pname = src.pname or (parseDrvName src.name).name;
       in prefix + optionalString (pname != "source") "-${pname}";
+
+      stripDot = path: let
+        name = baseNameOf path;
+      in if isPath path && hasPrefix "." name then builtins.path {
+        name = removePrefix "." name;
+        inherit path;
+        recursive = false;
+      } else path;
       crateName = replaceStrings [ "-" ] [ "_" ];
+
       escapePattern = escape (["." "*" "[" "]" "(" ")" "^" "$"]);
+
       ghPages = { owner, repo, path ? null }: "https://${owner}.github.io/${repo}"
         + optionalString (path != null) "/${path}";
 
