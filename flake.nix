@@ -19,15 +19,17 @@
       isAttrs isPath isString
     ;
     inherit (nixlib)
-      hasPrefix removePrefix removeSuffix escape concatMapStringsSep concatStringsSep
-      singleton flatten elem filter any concatLists concatMap
-      genAttrs mapAttrsToList filterAttrs
-      optional optionals optionalString optionalAttrs flip
-      escapeShellArg
+      hasPrefix removePrefix removeSuffix escape escapeShellArg concatMapStringsSep concatStringsSep splitString
+      singleton head tail last init flatten elem elemAt filter partition any concatLists concatMap
+      genAttrs mapAttrsToList filterAttrs listToAttrs nameValuePair
+      optional optionals optionalString optionalAttrs mapNullable
+      flip makeOverridable
       cleanSourceWith importTOML
+      fakeHash warn
     ;
     inherit (self.lib)
       srcName crateName stripDot
+      cratesRegistryUrl
       escapePattern
     ;
     escapeShellArgs = args: nixlib.escapeShellArgs (map (s: "${s}") args);
@@ -187,14 +189,14 @@
         };
       } // removeAttrs args [ "name" "patterns" ]) script;
 
-      wrapSource = { runCommand }: src: runCommand src.name {
+      wrapSource = { runCommand }: src: if ! isDerivation src then runCommand src.name {
         preferLocalBuild = true;
         inherit src;
         passthru.__toString = self: self.src;
       } ''
         mkdir $out
         ln -s $src/* $out/
-      '';
+      '' else src;
 
       copyFarm = { runCommand }: name: paths: runCommand name {
         preferLocalBuild = true;
@@ -253,6 +255,7 @@
 
       escapePattern = escape (["." "*" "[" "]" "(" ")" "^" "$"]);
 
+      cratesRegistryUrl = "https://github.com/rust-lang/crates.io-index";
       ghPages = { owner, repo, path ? null }: "https://${owner}.github.io/${repo}"
         + optionalString (path != null) "/${path}";
 
@@ -272,10 +275,131 @@
           rules' = concatMap (superrule root) rules;
         in concatStringsSep "\n" (singleton "/**" ++ map negateRule rules');
         isSubpackage = path: pathExists (path + "/Cargo.toml");
+        detectLockVersion = lock:
+          if any (p: p ? checksum) lock.packages or [] then 2
+          else if any (hasPrefix "checksum ") (attrNames lock.metadata or {}) then 1
+          else null;
+        fetchSource = pkg: { fetchurl ? builtins.fetchurl, fetchGit ? builtins.fetchGit, fetchgit ? null, src ? null }: let
+          inherit (pkg) source;
+        in {
+          local = src;
+          registry = if source.srcInfo != null then fetchurl {
+            inherit (source.srcInfo) name url;
+            ${if source.srcInfo.sha256 or null != null then "sha256" else null} = source.srcInfo.sha256;
+          } else null;
+          git = if fetchgit != null then fetchgit {
+            url = source.srcInfo.url;
+            rev = source.git.hash;
+            ${if pkg.checksum or null != null then "sha256" else null} = pkg.checksum;
+          } else fetchGit {
+            url = source.srcInfo.url;
+            rev = source.git.hash;
+            ${if source.git ? rev then "allRefs" else null} = true;
+            ${if source.git ? tag || source.git ? branch || hasPrefix "refs/" source.git.ref or "" then "ref" else null} =
+              if source.git ? tag then "refs/tags/${source.git.tag}"
+              else if source.git ? branch then "refs/heads/${source.git.branch}"
+              else source.git.rev;
+            ${if pkg.checksum ? submodules then "submodules" else null} = pkg.checksum.submodules;
+          };
+          path = warn "TODO: path+ source" null;
+          directory = warn "TODO: directory+ source" { };
+        }.${source.type} or null;
+        matchSource = match ''([^+]*)\+(.*)'';
+        matchGitUrl = match ''([^?]+)([?&]([^=]*=[^&]*))*#(.*)'';
+        parseSource = { source, ... }@pkg: let
+          match = matchSource source;
+          type = elemAt match 0;
+          url = elemAt match 1;
+          parsed = {
+            inherit type url source;
+            __toString = self: self.source;
+          } // {
+            registry.srcInfo = if source.url == cratesRegistryUrl then {
+              name = "crate-${pkg.name}-${pkg.version}.tar.gz";
+              url = "https://crates.io/api/v1/crates/${pkg.name}/${pkg.version}/download";
+              sha256 = pkg.checksum or null;
+            } else warn "unknown registry ${url}" null;
+            git = let
+              parsed = matchGitUrl url;
+              args = tail (init parsed);
+            in builtins.trace parsed {
+              srcInfo = {
+                url = head parsed;
+                sha256 = pkg.checksum or null;
+              };
+              git = {
+                hash = last parsed;
+              } // listToAttrs (map (p: let
+                kv = splitString "=" p;
+              in nameValuePair (head kv) (last kv)) args);
+            };
+            path = { };
+            directory = { };
+          }.${type} or (warn "unknown source type for ${source}" { });
+        in if match == null
+          then throw "cannot parse source ${source}"
+          else parsed;
+        mapDep = lock: name: let
+        in {
+          name = parsePackageDescriptor name;
+          pkg = lock.pkg.${name};
+          __toString = self: self.name;
+        };
+        mapPackage3 = crate: lock: pkg: let
+          p = pkg // {
+            pname = "${pkg.name}-${pkg.version}";
+            descriptor = packageDescriptor pkg;
+            checksum = lock.outputHashes.${p.pname} or pkg.checksum or null;
+            source = if pkg ? source
+              then parseSource pkg
+              else {
+                type = "local";
+                __toString = _: null;
+              };
+            deps = map (mapDep lock) p.dependencies;
+            dependencies = pkg.dependencies or [ ];
+            data = pkg;
+            src = makeOverridable (fetchSource p) {
+              inherit (crate) src;
+            };
+          };
+        in p;
+        mapPackage2 = crate: lock: pkg: mapPackage3 crate lock (if pkg ? branch then removeBranch pkg else pkg);
+        mapPackage1 = crate: lock: pkg: let
+          checksum = lock.metadata."checksum ${packageDescriptor pkg}" or null;
+        in mapPackage2 crate lock (pkg // {
+          inherit checksum;
+        });
+        removeBranch = pkg: let
+          source = parseSource pkg;
+          args = removeAttrs source.git [ "hash" ] // {
+            inherit (pkg) branch;
+          };
+        in assert source.type == "git"; removeAttrs pkg [ "branch" ] // {
+          source = "git+${source.srcInfo.url}"
+            + optionalString (args != { }) "?${concatStringsSep "&" (mapAttrsToList (k: v: "${k}=${v}") args)}"
+            + optionalString (source.git.hash != null) "#${source.git.hash}";
+        };
+        packageDescriptor = pkg: "${pkg.name} ${pkg.version}" + optionalString (pkg.source or null != null) " (${pkg.source})";
+        matchPackageDescriptor = match ''([^ ]*) ([^ ]*)( \(([^)]*)\))?'';
+        parsePackageDescriptor = name: let
+          match = matchPackageDescriptor name;
+        in if match == null then {
+          inherit name;
+          __toString = self: self.name;
+        } else {
+          name = elemAt match 0;
+          version = elemAt match 1;
+          source = mapNullable head (elemAt match 2);
+          descriptor = name;
+          __toString = self: self.descriptor;
+        };
       in {
         path
       , parent ? null
       , globalIgnore ? [ "/.cargo/" "/.github/" ".direnv" ".envrc" "*.nix" "flake.lock" ]
+      , cargoLock ? null
+      , outputHashes ? { }
       }: let
         paths = if baseNameOf path == "Cargo.toml" then {
           cargoTomlFile = path;
@@ -286,13 +410,46 @@
         };
         gitignore = paths.root + "/.gitignore";
         globalGitignoreString = concatStringsSep "\n" globalIgnore;
-        cargoLockFile = if parent != null then parent.cargoLockFile else paths.root + "/Cargo.lock";
+        cargoLockArgs =
+          if cargoLock != null then cargoLock
+          else if parent != null then parent.cargoLock
+          else { lockFile = paths.root + "/Cargo.lock"; };
         cargoToml = importTOML paths.cargoTomlFile;
         crate = cargoToml // {
+          inherit (crate.package) name version;
           inherit (paths) root cargoTomlFile;
-          inherit parent cargoLockFile;
+          inherit parent;
+          lock = let
+            inherit (crate) lock;
+            local = partition (p: p.source.type == "local") lock.packages;
+          in {
+            version = lock.data.version or (detectLockVersion lock.data);
+            contents = cargoLockArgs.lockFileContents or (readFile cargoLockArgs.lockFile);
+            data = fromTOML lock.contents;
+            pkg = listToAttrs (concatMap (p: [
+              (nameValuePair p.name p)
+              (nameValuePair p.pname p)
+              (nameValuePair p.descriptor p)
+            ]) lock.packages);
+            packages = map ({
+              "3" = mapPackage3;
+              "2" = mapPackage2;
+              "1" = mapPackage1;
+            }.${toString lock.version} or (throw "unsupported Cargo.lock version ${toString lock.version}") crate lock) lock.data.package;
+            localPackages = local.right;
+            externalPackages = local.wrong;
+            gitPackages = filter (p: p.source.type == "git") lock.externalPackages;
+            defaultOutputHashes = let
+              gitPackages = filter (p: p.data.checksum or null == null) lock.gitPackages;
+            in listToAttrs (map (p: nameValuePair p.pname fakeHash) gitPackages);
+            outputHashes = cargoLockArgs.outputHashes or lock.defaultOutputHashes // outputHashes;
+          };
+          cargoLock = cargoLockArgs // {
+            inherit (crate.lock) outputHashes;
+          };
+          cargoVendorDir = { importCargoLock }: importCargoLock crate.cargoLock;
           workspaces = mapAttrs (_: path: importCargo' {
-            inherit path globalIgnore;
+            inherit path globalIgnore outputHashes;
             parent = crate;
           }) crate.workspaceFiles;
           workspaceFiles = genAttrs crate.workspace.members or [ ] (w: crate.root + "/${w}");
