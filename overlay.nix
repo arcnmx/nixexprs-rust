@@ -1,5 +1,5 @@
-let overlay = self: super: with super.lib; let
-  lib = super.lib.extend (import ./lib);
+self: super: with super.lib; let
+  lib = super.lib.extend (import ./lib/overlay.nix);
   impure = builtins ? currentSystem;
   rustChannel = lib.makeOrExtend super "rustChannel" (rself: rsuper: {
     lib = lib.makeOrExtend rsuper "lib" (lself: lsuper: import ./build-support {
@@ -101,4 +101,4 @@ in fetchcargos // {
         rself.manifest.targets.${target}.rust-std
       ) targets;
     });
-}; in final: prev: overlay final prev
+}
