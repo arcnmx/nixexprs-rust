@@ -30,15 +30,6 @@ in {
   buildInput = inputOffset "hostTarget";
   nativeInput = inputOffset "buildHost";
 
-  findInput = inputs: package: let
-    parseDrvName = drv: (builtins.parseDrvName (drv.name or "")).name;
-    compare = lhs: rhs: parseDrvName lhs == parseDrvName rhs;
-    find = pkg: any (compare pkg) (toList package);
-  in
-    if package == null then null
-    else if isList package then filter find inputs
-    else findFirst find (throw "cannot find ${package.name} in ${toString (map parseDrvName inputs)}") inputs;
-
   retainAttrs = attrs: whitelist:
     filterAttrs (k: _: any (w: w == k) whitelist) attrs;
 
