@@ -78,7 +78,7 @@ in {
         inherit type url source;
         __toString = self: self.source;
       } // {
-        registry.srcInfo = if source.url == cratesRegistryUrl then {
+        registry.srcInfo = if parsed.url == cratesRegistryUrl then {
           name = "crate-${pkg.name}-${pkg.version}.tar.gz";
           url = "https://crates.io/api/v1/crates/${pkg.name}/${pkg.version}/download";
           sha256 = pkg.checksum or null;

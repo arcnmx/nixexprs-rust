@@ -52,6 +52,6 @@ in {
     flattenFiles;
 
   inherit (import ./cargo.nix self super)
-    crateName ghPages
+    crateName ghPages cratesRegistryUrl
     importCargo importCargo';
 }
