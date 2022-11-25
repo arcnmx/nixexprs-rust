@@ -224,7 +224,7 @@ in {
       workspaceFiles = genAttrs crate.workspace.members or [ ] (w: crate.root + "/${w}");
       filter = let
         noopFilter = _: _: true;
-        defaultFilter = if pathExists (path.root + "/.git")
+        defaultFilter = if pathExists (crate.root + "/.git")
           then noopFilter
           else path: type: ! hasPrefix "." (baseNameOf path);
         baseExcludes = [ "${toString crate.root}/target" "${toString crate.root}/.git" ];
