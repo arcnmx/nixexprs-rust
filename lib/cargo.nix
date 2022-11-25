@@ -113,7 +113,7 @@ in {
       p = pkg // {
         pname = "${pkg.name}-${pkg.version}";
         descriptor = packageDescriptor pkg;
-        checksum = lock.explicitOutputHashes.${p.pname} or pkg.checksum or null;
+        checksum = lock.gitOutputHashes.explicit.${p.pname} or pkg.checksum or null;
         source = if pkg ? source
           then parseSource pkg
           else {
@@ -204,11 +204,14 @@ in {
         localPackages = local.right;
         externalPackages = local.wrong;
         gitPackages = filter (p: p.source.type == "git") lock.externalPackages;
-        defaultOutputHashes = let
+        gitOutputHashes = let
           gitPackages = filter (p: p.data.checksum or null == null) lock.gitPackages;
-        in listToAttrs (map (p: nameValuePair p.pname p.src.narHash or fakeHash) gitPackages);
-        outputHashes = cargoLockArgs.outputHashes or lock.defaultOutputHashes // lock.explicitOutputHashes;
-        explicitOutputHashes = cargoLockArgs.outputHashes or { } // outputHashes;
+        in {
+          default = listToAttrs (map (p: nameValuePair p.pname p.src.narHash or p.src.sha256 or fakeHash) lock.gitPackages);
+          missing = listToAttrs (map (p: nameValuePair p.pname lock.gitOutputHashes.default.${p.pname}) gitPackages);
+          explicit = cargoLockArgs.outputHashes or { } // outputHashes;
+        };
+        outputHashes = lock.gitOutputHashes.missing // cargoLockArgs.outputHashes or lock.gitOutputHashes.default // lock.gitOutputHashes.explicit;
       };
       cargoLock = cargoLockArgs // {
         inherit (crate.lock) outputHashes;

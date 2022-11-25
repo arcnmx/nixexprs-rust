@@ -14,6 +14,7 @@
     # self.lib
     srcName crateName stripDot
     escapePattern
+    importCargo
   ;
   escapeShellArgs = args: lib.escapeShellArgs (map (s: "${s}") args);
 in {
@@ -158,6 +159,25 @@ in {
       ${toString (mapAttrsToList (k: v: ''-a "${k}=${v}"'') attributes)} |
       pandoc -f docbook -t gfm ${escapeShellArgs pandocArgs} > $out
   '';
+
+  cargoOutputHashes = { writeTextFile }:
+  { path ? crate.root
+  , lockFile ? path + "/Cargo.lock"
+  , outputHashes ? crate.lock.gitOutputHashes.default
+  , name ? "cargo-lock-${crate.name}.nix"
+  , meta ? { name = "cargo generate-lockfile"; }
+  , crate ? importCargo { inherit path; cargoLock = { inherit lockFile; }; }
+  }@args: let
+    hashes = mapAttrsToList (pname: hash: ''"${pname}" = "${hash}";'') outputHashes;
+    hashesText = concatStringsSep " " hashes;
+  in writeTextFile {
+    inherit name;
+    text = ''
+      {
+        outputHashes = { ${hashesText} };
+      }
+    '';
+  };
 
   generateFiles = { writeShellScriptBin }:
   { name ? "generate"
