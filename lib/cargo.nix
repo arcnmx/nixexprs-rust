@@ -69,7 +69,7 @@ in {
       directory = warn "TODO: directory+ source" { };
     }.${source.type} or null;
     matchSource = match ''([^+]*)\+(.*)'';
-    matchGitUrl = match ''([^?]+)([?&]([^=]*=[^&]*))*#(.*)'';
+    matchGitUrl = match ''([^?]+)(([?&][^=]*=[^&]*)*)#(.*)'';
     parseSource = { source, ... }@pkg: let
       match = matchSource source;
       type = elemAt match 0;
@@ -85,16 +85,16 @@ in {
         } else warn "unknown registry ${url}" null;
         git = let
           parsed = matchGitUrl url;
-          args = tail (init parsed);
+          args = splitString "&" (removePrefix "?" (elemAt parsed 1));
         in {
           srcInfo = {
-            url = head parsed;
+            url = elemAt parsed 0;
             sha256 = pkg.checksum or null;
           };
           git = {
-            hash = last parsed;
+            hash = elemAt parsed 3;
           } // listToAttrs (map (p: let
-            kv = splitString "=" p;
+            kv = splitString "=" (removePrefix "&" p);
           in nameValuePair (head kv) (last kv)) args);
         };
         path = { };
@@ -118,7 +118,8 @@ in {
           then parseSource pkg
           else {
             type = "local";
-            __toString = _: null;
+            inherit (pkg) name version;
+            __toString = self: "local+${self.name}/${self.version}";
           };
         deps = map (mapDep lock) p.dependencies;
         dependencies = pkg.dependencies or [ ];

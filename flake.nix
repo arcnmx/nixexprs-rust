@@ -9,9 +9,7 @@
       "mipsel-linux" # no nixpkgs bootstrap error: attribute 'busybox' missing
       "armv5tel-linux" # error: missing bootstrap url for platform armv5te-unknown-linux-gnueabi
     ];
-    systems = filter (s: ! elem s unsupportedSystems)
-      nixpkgs.lib.systems.flakeExposed or nixpkgs.lib.systems.supported.hydra;
-    forSystems = genAttrs systems;
+    forSystems = genAttrs self.lib.systems;
     impure = builtins ? currentSystem;
     inherit (builtins)
       mapAttrs removeAttrs
@@ -84,6 +82,9 @@
     };
 
     lib = self.overlays.lib self.lib nixlib // {
+      systems = filter (s: ! elem s unsupportedSystems)
+        nixpkgs.lib.systems.flakeExposed or nixpkgs.lib.systems.supported.hydra;
+
       nix-gitignore = let
         gitignore = import (nixpkgs + "/pkgs/build-support/nix-gitignore") {
           inherit (nixpkgs) lib;
@@ -97,9 +98,12 @@
       ];
     };
 
-    flakes.config = rec {
-      name = "rust";
-      packages.namespace = [ name ];
+    flakes = {
+      config = rec {
+        name = "rust";
+        packages.namespace = [ name ];
+      };
+      systems = forSystems nixpkgs.lib.id;
     };
   };
 }

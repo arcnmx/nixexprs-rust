@@ -7,7 +7,7 @@ self: super: let
     filterFiles filterFilesRecursive
     flattenFiles
   ;
-  inherit (builtin)
+  inherit (builtins)
     readDir
   ;
 in {
