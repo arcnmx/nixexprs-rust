@@ -202,6 +202,7 @@ in {
   , cargoLock ? crate.cargoLock or null
   , crate ? if path != null then importCargo { inherit path; } else null
   , path ? crate.root
+  , preBuild ? ""
   , ...
   }@args: rustPlatform.buildRustPackage ({
     pname = name;
@@ -222,7 +223,7 @@ in {
       if [[ -n "''${cargoDocFeatures-}" ]]; then
         cargoDocFeaturesFlag="--features=''${cargoDocFeatures// /,}"
       fi
-    '';
+    '' + preBuild;
     buildPhase = ''
       runHook preBuild
 
@@ -251,5 +252,5 @@ in {
 
       runHook postInstall
     '';
-  } // removeAttrs args [ "name" "enableUnstableRustdoc" "rustdocFlags" ]);
+  } // removeAttrs args [ "name" "enableUnstableRustdoc" "rustdocFlags" "preBuild" ]);
 }
