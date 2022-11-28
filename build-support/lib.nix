@@ -185,4 +185,71 @@ in {
   }: writeShellScriptBin name (concatStringsSep "\n" ([ "set -eu" ] ++ mapAttrsToList (path: src:
     ''cp --no-preserve=all ${src} ${escapeShellArg path}''
   ) paths));
+
+  cargoDoc = { rustPlatform }:
+  { src ? crate.src
+  , name ? srcName "cargo-doc" src
+  , version ? crate.package.version or "0"
+  , meta ? { name = "cargo doc"; }
+  , rustdocFlags ? lib.rustdocFlags {
+      zUnstableOptions = enableUnstableRustdoc;
+      inherit enableUnstableRustdoc crate;
+    }
+  , cargoDocFlags ? [ "--no-deps" ]
+  , cargoDocFeatures ? crate.package.metadata.docs.rs.features or null
+  , cargoDocNoDefaultFeatures ? false
+  , enableUnstableRustdoc ? false
+  , cargoLock ? crate.cargoLock or null
+  , crate ? if path != null then importCargo { inherit path; } else null
+  , path ? crate.root
+  , ...
+  }@args: rustPlatform.buildRustPackage ({
+    pname = name;
+    inherit version meta src;
+
+    inherit cargoDocFlags cargoDocFeatures;
+    ${if enableUnstableRustdoc then "RUSTC_BOOTSTRAP" else null} = 1;
+    ${if rustdocFlags != [ ] then "RUSTDOCFLAGS" else null} = rustdocFlags;
+    ${if cargoLock != null then "cargoLock" else null} = cargoLock;
+
+    buildType = "debug";
+    dontCargoCheck = true;
+    preBuild = ''
+      if [[ -n "''${cargoDocNoDefaultFeatures-}" ]]; then
+        cargoDocNoDefaultFeaturesFlag=--no-default-features
+      fi
+
+      if [[ -n "''${cargoDocFeatures-}" ]]; then
+        cargoDocFeaturesFlag="--features=''${cargoDocFeatures// /,}"
+      fi
+    '';
+    buildPhase = ''
+      runHook preBuild
+
+      if [[ ! -z "''${buildAndTestSubdir-}" ]]; then
+        export CARGO_TARGET_DIR="$(pwd)/target"
+        pushd "''${buildAndTestSubdir}"
+      fi
+
+      cargo doc \
+        --frozen \
+        ''${cargoDocNoDefaultFeaturesFlag} \
+        ''${cargoDocFeaturesFlag} \
+        ''${cargoDocFlags}
+
+      if [[ ! -z "''${buildAndTestSubdir-}" ]]; then
+        popd
+      fi
+
+      runHook postBuild
+    '';
+    installPhase = ''
+      runHook preInstall
+
+      install -d $out/share/doc
+      mv target/doc $out/share/doc/$pname
+
+      runHook postInstall
+    '';
+  } // removeAttrs args [ "name" "enableUnstableRustdoc" "rustdocFlags" ]);
 }
