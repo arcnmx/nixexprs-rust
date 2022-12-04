@@ -162,6 +162,8 @@ in {
   in {
     path
   , parent ? null
+  , self ? null
+  , sourceInfo ? self.sourceInfo or null
   , globalIgnore ? [ "/.cargo/" "/.github/" ".direnv" ".envrc" "*.nix" "flake.lock" ]
   , cargoLock ? null
   , outputHashes ? { }
@@ -183,7 +185,7 @@ in {
     crate = cargoToml // {
       inherit (crate.package) name version;
       inherit (paths) root cargoTomlFile;
-      inherit parent;
+      inherit parent sourceInfo;
       lock = let
         inherit (crate) lock;
         local = partition (p: p.source.type == "local") lock.packages;
@@ -263,15 +265,25 @@ in {
       pkgSrcs = flattenFiles crate.root (filterFilesRecursive crate.root crate.filter);
       srcs = crate.pkgSrcs ++ concatLists (mapAttrsToList (_: c: c.pkgSrcs) crate.members);
       workspaceSrcs = flattenFiles crate.root (filterFilesRecursive crate.root crate.filter.workspace);
-      pkgSrc = cleanSourceWith {
+      pkgSrc = let
+        pname = crate.package.name + "-pkgsource";
+      in cleanSourceWith {
         src = crate.root;
         inherit (crate) filter;
-        name = crate.package.name + "-pkgsource-${crate.package.version}";
+        name = "${pname}-${crate.package.version}";
+      } // {
+        inherit pname sourceInfo;
+        inherit (crate.package) version;
       };
-      src = cleanSourceWith {
+      src = let
+        pname = crate.package.name + "-source";
+      in cleanSourceWith {
         src = crate.root;
         filter = crate.filter.workspace;
-        name = crate.package.name + "-source-${crate.package.version}";
+        name = "${pname}-${crate.package.version}";
+      } // {
+        inherit pname sourceInfo;
+        inherit (crate.package) version;
       };
       outPath = paths.cargoTomlFile;
     };

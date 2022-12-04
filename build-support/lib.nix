@@ -4,11 +4,13 @@
 }: let
   inherit (builtins)
     dirOf baseNameOf
-    removeAttrs attrNames
+    isAttrs removeAttrs attrNames
+    isString isPath
+    elem
   ;
   inherit (lib)
     removeSuffix escapeShellArg concatMapStringsSep concatStringsSep
-    mapAttrsToList
+    optionalAttrs filterAttrs mapAttrsToList
     optionals
     isDerivation
     # self.lib
@@ -17,6 +19,20 @@
     importCargo
   ;
   escapeShellArgs = args: lib.escapeShellArgs (map (s: "${s}") args);
+  retainAttrs = attrs: names: filterAttrs (k: _: elem k names) attrs;
+
+  wrapSource' = { runCommand }: {
+    src
+  }: if ! isDerivation src then runCommand src.name {
+    preferLocalBuild = true;
+    inherit src;
+    passthru = {
+      __toString = self: self.src;
+    } // optionalAttrs (isAttrs src) (retainAttrs src [ "pname" "version" "sourceInfo" ]);
+  } ''
+    mkdir $out
+    ln -s $src/* $out/
+  '' else src;
 in {
   check-rustfmt = {
     rustfmt, cargo, runCommand
@@ -124,14 +140,12 @@ in {
     };
   } // removeAttrs args [ "name" "patterns" ]) script;
 
-  wrapSource = { runCommand }: src: if ! isDerivation src then runCommand src.name {
-    preferLocalBuild = true;
+  inherit wrapSource';
+  wrapSource = { runCommand }: src: wrapSource' {
+    inherit runCommand;
+  } (if src ? outPath || src ? __toString || isPath src || isString src then {
     inherit src;
-    passthru.__toString = self: self.src;
-  } ''
-    mkdir $out
-    ln -s $src/* $out/
-  '' else src;
+  } else src);
 
   copyFarm = { runCommand }: name: paths: runCommand name {
     preferLocalBuild = true;
