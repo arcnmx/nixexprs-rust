@@ -40,7 +40,7 @@ in {
     in concatStringsSep "\n" (singleton "/**" ++ map negateRule rules');
     isSubpackage = path: pathExists (path + "/Cargo.toml");
     detectLockVersion = lock:
-      if any (p: p ? checksum) lock.packages or [] then 2
+      if any (p: p ? checksum) lock.package or [] then 2
       else if any (hasPrefix "checksum ") (attrNames lock.metadata or {}) then 1
       else null;
     fetchSource = pkg: { fetchurl ? builtins.fetchurl, fetchGit ? builtins.fetchGit, fetchgit ? null, src ? null }: let
