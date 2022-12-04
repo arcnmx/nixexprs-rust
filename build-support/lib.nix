@@ -96,7 +96,7 @@ in {
     mapDocsRs =
     { version ? null, name ? null
     , baseUrl ? "docs.rs"
-    , url ? genDocsUrl { inherit version name baseUrl; } + "/"
+    , url ? genDocsUrl { inherit version name baseUrl; } + "/?"
     }: mapPattern {
       pattern = escapePattern ''doc(html_root_url = "'' + url + escapePattern ''")'';
     };
