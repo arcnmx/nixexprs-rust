@@ -217,8 +217,8 @@ in {
         inherit (crate.lock) outputHashes;
       };
       cargoVendorDir = { importCargoLock }: importCargoLock crate.cargoLock;
-      workspaces = mapAttrs (_: path: importCargo' {
-        inherit path globalIgnore outputHashes;
+      members = mapAttrs (_: path: importCargo' {
+        inherit path globalIgnore outputHashes self sourceInfo;
         parent = crate;
       }) crate.workspaceFiles;
       workspaceFiles = genAttrs crate.workspace.members or [ ] (w: crate.root + "/${w}");
@@ -251,7 +251,7 @@ in {
           if crate ? package.exclude then
             nix-gitignore.gitignoreFilterPure baseExclude crate.package.exclude crate.root
           else baseExclude;
-        crates = singleton crate ++ attrValues crate.workspaces;
+        crates = singleton crate ++ attrValues crate.members;
       in {
         include = path: type: baseInclude path type || include path type;
         inherit exclude dirInclude;
@@ -261,7 +261,7 @@ in {
         __functor = self: path: type: (self.exclude path type || self.dirInclude path type) && self.include path type;
       };
       pkgSrcs = flattenFiles crate.root (filterFilesRecursive crate.root crate.filter);
-      srcs = crate.pkgSrcs ++ concatLists (mapAttrsToList (_: c: c.pkgSrcs) crate.workspaces);
+      srcs = crate.pkgSrcs ++ concatLists (mapAttrsToList (_: c: c.pkgSrcs) crate.members);
       workspaceSrcs = flattenFiles crate.root (filterFilesRecursive crate.root crate.filter.workspace);
       pkgSrc = cleanSourceWith {
         src = crate.root;
