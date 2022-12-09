@@ -13,7 +13,10 @@
   };
 
   cargoPatches = [ ./lock.patch ];
-  cargoSha256 = "16gmfq6v7qqa2xzshjbgpffygvf7nd5qn31m0b696rnwfj4rxlag";
+  cargoLock.lockFile = ./Cargo.lock;
+  postPatch = ''
+    ln -s ${./Cargo.lock} Cargo.lock
+  '';
 
   buildType = "debug";
 
@@ -26,7 +29,7 @@
   depsBuildBuild = [ qemu ]; # this should be checkInputs but...
   checkPhase = ''
     sed -i -e 's/# runner = "qemu/runner = "qemu/' .cargo/config
-    cargo run -v --example hello
+    cargo run --frozen -v --example hello
   '';
 
   meta.platforms = platforms.all;
