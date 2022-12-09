@@ -183,12 +183,14 @@ in {
   , crate ? importCargo { inherit path; cargoLock = { inherit lockFile; }; }
   }@args: let
     hashes = mapAttrsToList (pname: hash: ''"${pname}" = "${hash}";'') outputHashes;
-    hashesText = concatStringsSep " " hashes;
+    hashesText = concatStringsSep "\n    " hashes;
   in writeTextFile {
     inherit name;
     text = ''
       {
-        outputHashes = { ${hashesText} };
+        outputHashes = {
+          ${hashesText}
+        };
       }
     '';
   };
