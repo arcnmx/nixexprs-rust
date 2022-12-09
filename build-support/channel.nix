@@ -1,6 +1,6 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
-    stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, fetchcargo ? null, fetchCargoTarball ? null, pkgs, buildPackages, targetPackages, buildRustCrate
+    stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
   , rustcDev ? false # include "rustc-dev" component in sysroot
   , channelOverlays ? []
@@ -11,7 +11,7 @@
     } "echo tool ${name} missing from ${hostPlatform.config} >&2";
     isAvailable = tools: name: tools ? ${name} && tools.${name}.meta.broken or false != true;
     makeExtensibleChannel = overlays: builder: builtins.foldl' (c: o: c.extend o) (lib.makeExtensible builder) overlays;
-    channelBuilder = { stdenv, hostPlatform, targetPlatform, pkgs, buildPackages, targetPackages, fetchcargo, fetchCargoTarball, buildRustCrate, rlib }: cself: {
+    channelBuilder = { stdenv, hostPlatform, targetPlatform, pkgs, buildPackages, targetPackages, buildRustCrate, rlib }: cself: {
       manifestArgs = lib.optionalAttrs (rustToolchain != null) (rlib.parseRustToolchain rustToolchain) // {
         distRoot = rlib.distRoot;
       } // lib.retainAttrs args [ "date" "channel" "staging" ];
@@ -137,40 +137,52 @@
 
       # build support
       mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
-      fetchcargo = lib.mapNullable (f: f.override {
-        inherit (cself.buildTools) cargo;
-      }) fetchcargo;
-      fetchCargoTarball = lib.mapNullable (f: f.override {
-        inherit (cself.buildTools) cargo;
-      }) fetchCargoTarball;
       buildRustCrate = buildRustCrate.override {
-        # TODO: rlib.buildRustCrate!
         inherit (cself.buildTools) rustc;
       };
       rustPlatform = builtins.removeAttrs cself.buildChannel ["rustPlatform"] // rlib.makeRustPlatform.override {
         inherit stdenv;
-        inherit (cself) fetchcargo fetchCargoTarball;
       } {
+        inherit (cself) rust;
         inherit (cself.buildChannel) cargo rustc rust-src;
       } // {
-        inherit (cself) context fetchcargo fetchCargoTarball mkShell buildRustCrate;
+        inherit (cself) context mkShell buildRustCrate;
         inherit (cself) buildChannel targetChannel;
         hostChannel = cself;
       };
-      inherit (cself.rustPlatform) buildRustPackage rust rustcSrc;
+      rust = rlib.makeRust.override {
+        inherit (cself.context.pkgs) newScope;
+      } {
+        packages = rec {
+          prebuilt = {
+            inherit (cself) rustPlatform rustc cargo clippy rustfmt;
+          };
+          ${channel} = prebuilt;
+        };
+        buildRust = cself.buildChannel.rust;
+      } // cself.rustPlatform.rust;
+      inherit (cself.rustPlatform) buildRustPackage rustcSrc;
+
+      callPackage = pkgs.newScope {
+        rustChannel = cself;
+        inherit (cself)
+          rust rustPlatform buildRustPackage buildRustCrate
+          cargo rustc
+        ;
+      };
 
       # buildPackages and targetPackages variants
       buildChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (buildPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+        inherit (buildPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages buildRustCrate;
         rlib = rlib.buildLib;
       });
       targetChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (targetPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+        inherit (targetPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages buildRustCrate;
         rlib = rlib.targetLib;
       });
     };
   in makeExtensibleChannel channelOverlays (channelBuilder {
-    inherit stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages fetchcargo fetchCargoTarball buildRustCrate;
+    inherit stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages buildRustCrate;
     rlib = self;
   })) { };
 }

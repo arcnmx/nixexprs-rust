@@ -1,6 +1,7 @@
 { pkgs, lib, self, ... }: let
   ccEnvVar = n: builtins.replaceStrings [ "-" ] [ "_" ] n;
   cargoEnvVar = n: ccEnvVar (lib.toUpper n);
+  rust'lib = pkgs.rust.lib;
 in {
   rustTargetEnvironment = lib.makeOverridable ({
     pkgs ? null
@@ -53,10 +54,11 @@ in {
   };
 
   rustTargetFor = platform:
-    platform.platform.rust.target
+    platform.rustc.config
+    or platform.platform.rust.target
     or self.targetForConfig.${platform.config}
     or self.targetForSystem.${platform.system}
-    or platform.config;
+    or (rust'lib.toRustTarget platform);
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   # for gcc/cc-rs, the build support crate
   rustCcEnv = { lib, stdenv, hostPlatform ? stdenv.hostPlatform }@cp: with lib; {
@@ -426,12 +428,82 @@ in {
     };
   };
 
-  makeRustPlatform = { path, lib, makeRustPlatform, stdenv, buildPackages, fetchcargo ? null, fetchCargoTarball ? null }: { cargo, rustc, rust-src }: makeRustPlatform {
-    inherit cargo rustc;
-  } // {
-    rustcSrc = rust-src;
-    buildRustPackage = self.buildRustPackage.override {
-      inherit path lib stdenv fetchcargo fetchCargoTarball rustc cargo;
+  makeRustPlatform = {
+    makeRustPlatform
+  , stdenv, path, lib
+  , newScope, buildPackages
+  , runCommand
+  }: { rust ? null, cargo, rustc, rust-src }: let
+    rlib = self;
+    platform = lib.makeExtensible (self: makeRustPlatform.override {
+      inherit (self) callPackage;
+      buildPackages = buildPackages // {
+        callPackage = buildPackages.newScope {
+          inherit cargo rustc;
+        };
+      };
+    } {
+      inherit cargo rustc stdenv;
+    });
+    patchSetupHook = hook: runCommand hook.name {
+      preferLocalBuild = true;
+      inherit hook;
+      rustTargetPlatformSpec = rust.toRustTargetSpec stdenv.hostPlatform;
+      targetName = rlib.rustTargetFor stdenv.hostPlatform;
+    } ''
+      mkdir $out
+      cp --no-preserve=mode -r $hook/* $out/
+      sed -i \
+        -e "s/--target $rustTargetPlatformSpec//" \
+        -e "s|target/$rustTargetPlatformSpec/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetName}}/|" \
+        $out/nix-support/setup-hook
+    '';
+  in platform.extend (self: super: {
+    callPackage = newScope {
+      rustPlatform = self;
+      inherit rust;
+      inherit (self.rust) rustc cargo;
+      inherit (self)
+        buildRustPackage fetchCargoTarball importCargoLock
+        cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
+        maturinBuildHook bindgenHook
+        rustcSrc rustLibSrc
+      ;
+      ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
     };
+    rustcSrc = rust-src;
+    buildRustPackage = rlib.buildRustPackage.override {
+      rustPlatform = self;
+      buildRustPackage = super.buildRustPackage.override {
+        inherit stdenv rust;
+        inherit (self)
+          fetchCargoTarball
+          cargoBuildHook cargoCheckHook cargoInstallHook
+          cargoSetupHook
+        ;
+        ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
+      };
+      inherit (self.rust) rustc cargo;
+      inherit rust;
+      inherit path lib stdenv;
+    };
+    cargoBuildHook = patchSetupHook super.cargoBuildHook;
+    cargoCheckHook = patchSetupHook super.cargoCheckHook;
+    cargoInstallHook = patchSetupHook super.cargoInstallHook;
+    ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = patchSetupHook super.cargoNextestHook;
+    cargoSetupHook = patchSetupHook super.cargoSetupHook;
+    maturinBuildHook = patchSetupHook super.maturinBuildHook;
+  });
+
+  makeRust = { newScope, rust, buildPackages }: {
+    packages ? {
+      inherit (rust.packages) prebuilt;
+      stable = builtins.removeAttrs rust.packages.stable [ "newScope" "overrideScope" "overrideScope'" "packages" ];
+    },
+    buildRust ? buildPackages.rust,
+  }: with lib; builtins.removeAttrs rust [ "packages" "override" "overrideDerivation" ] // {
+    packages = mapAttrs (channel: packages: lib.makeScope newScope (self: packages // {
+      buildRustPackages = buildRust.packages.${channel} or { };
+    })) packages;
   };
 }

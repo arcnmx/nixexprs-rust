@@ -67,17 +67,7 @@ self: super: with super.lib; let
       manifestPath = ./releases + "/channel-rust-${channel}.toml";
     }) rself.releaseHashes;
   });
-  fetchcargoPath = super.path + "/pkgs/build-support/rust/fetchcargo.nix";
-  fetchCargoTarballPath' = super.path + "/pkgs/build-support/rust/fetchCargoTarball.nix";
-  fetchCargoTarballPath = if builtins.pathExists fetchCargoTarballPath'
-    then fetchCargoTarballPath'
-    else super.path + "/pkgs/build-support/rust/fetch-cargo-tarball/default.nix";
-  fetchcargos = lib.optionalAttrs (builtins.pathExists fetchcargoPath) {
-    fetchcargo = self.buildPackages.callPackage fetchcargoPath { }; # TODO: override cargo?
-  } // lib.optionalAttrs (builtins.pathExists fetchCargoTarballPath) {
-    fetchCargoTarball = self.buildPackages.callPackage fetchCargoTarballPath { }; # TODO: override cargo?
-  };
-in fetchcargos // {
+in {
   inherit rustChannel lib;
 
   # For backward compatibility

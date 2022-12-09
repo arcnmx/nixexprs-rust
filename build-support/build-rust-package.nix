@@ -1,4 +1,26 @@
-{ path, lib, rustChannel, stdenv, cargo, rustc, fetchcargo ? null, fetchCargoTarball ? null, windows ? null, buildPackages }: {
+{ path, lib
+, rustChannel, buildRustPackage ? rustChannel.buildRustPackage
+, rust, rustPlatform
+, stdenv
+, cargo, windows ? null
+, rustc
+}: let
+  buildRustPackage' = buildRustPackage.override {
+    callPackage = _: _: throw "no sysroot for you";
+  };
+  fn = if builtins.pathExists (path + "/pkgs/build-support/rust/hooks/cargo-build-hook.sh")
+    then new
+    else old;
+  new = {
+    rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
+  , ...
+  }@args: (buildRustPackage' ({
+  } // builtins.removeAttrs args [ "rustTarget" ])).overrideAttrs (old: {
+    ${if args ? rustTarget then "CARGO_BUILD_TARGET" else null} = rustTarget;
+    ${if lib.hasSuffix ".json" rustTarget then "CARGO_BUILD_TARGET_NAME" else null} = lib.removeSuffix ".json" (builtins.baseNameOf rustTarget);
+    ${if args ? RUSTFLAGS then "RUSTFLAGS" else null} = args.RUSTFLAGS;
+  });
+old = {
   name ? "${args.pname}-${args.version}"
 , cargoSha256 ? lib.fakeSha256
 , src ? null
@@ -14,13 +36,11 @@
 , cargoDepsHook ? ""
 , cargoBuildFlags ? []
 , buildType ? "release"
-, legacyCargoFetcher ? fetchCargoTarball == null && fetchcargo != null
 , rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
 , ... }@args: let
-  fetchCargo = if legacyCargoFetcher then fetchcargo else fetchCargoTarball;
   cargoDeps = if cargoVendorDir == null
-    then fetchCargo {
+    then rustPlatform.fetchCargoTarball {
       inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
       patches = cargoPatches;
       sha256 = cargoSha256;
@@ -35,7 +55,6 @@
     '';
   patchRegistryDeps = path + "/pkgs/build-support/rust/patch-registry-deps";
 in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
-  ${if legacyCargoFetcher && builtins.pathExists patchRegistryDeps then "patchRegistryDeps" else null} = patchRegistryDeps;
   nativeBuildInputs = [ cargo rustc ] ++ nativeBuildInputs;
   buildInputs = buildInputs ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
   inherit cargoDeps;
@@ -132,4 +151,5 @@ in lib.drvRec (drv: stdenv.mkDerivation (lib.recursiveUpdate args {
     #inherit (drv) cargoDeps;
     #inherit rustChannel;
   } // args.passthru or { };
-}))
+}));
+in fn
