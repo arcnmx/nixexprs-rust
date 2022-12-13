@@ -20,6 +20,12 @@ self: super: with super.lib; let
       then rself.distChannel { channel = "stable"; }
       else rself.latest;
 
+    unstable = rself.distChannel {
+      channel = "nightly";
+      date = "2022-12-05";
+      sha256 = "sha256-ds789KOM8O1eD1QN0AvYYmJQA9T+G4Vk79YnAVPiYmo=";
+    };
+
     latest = rself.releases.${lib.last (lib.attrNames rself.releases)};
 
     releaseHashes = {

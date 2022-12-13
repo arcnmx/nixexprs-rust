@@ -67,7 +67,7 @@
       legacyPackages = self.legacyPackages.${system};
       filterBroken = filterAttrs (_: c: c.toolsAvailable);
       channels = {
-        inherit (legacyPackages) latest stable;
+        inherit (legacyPackages) latest stable unstable;
       } // optionalAttrs impure {
         inherit (legacyPackages) beta nightly;
       } // filterBroken legacyPackages.releases;
