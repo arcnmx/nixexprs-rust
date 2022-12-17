@@ -135,6 +135,11 @@
         inherit (cself) rust-src rust-analyzer-unwrapped;
       };
 
+      rust-analyzer-upstream = rlib.wrapRustAnalyzer {
+        inherit (cself) rust-src;
+        inherit (pkgs) rust-analyzer-unwrapped;
+      };
+
       # build support
       mkShell = rlib.mkShell.override { inherit (cself) rustPlatform; };
       buildRustCrate = buildRustCrate.override {
