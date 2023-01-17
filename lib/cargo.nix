@@ -245,8 +245,8 @@ in {
         dirIncludes = map (r: toString (crate.root + "/${r}")) (concatMap (rule: superrule crate.root (dirOf rule)) crate.package.include or [ ]);
         dirInclude = path: type: type == "directory" && elem path dirIncludes;
         include =
-          if crate ? package.include then nix-gitignore.gitignoreFilterPure noopFilter (
-            negateInclude crate.root crate.package.include
+          if crate ? package.include || ! crate ? package then nix-gitignore.gitignoreFilterPure noopFilter (
+            negateInclude crate.root crate.package.include or [ ]
           ) crate.root else if pathExists gitignore then nix-gitignore.gitignoreFilterPure noopFilter (
             globalGitignoreString + "\n" + readFile gitignore
           ) crate.root else nix-gitignore.gitignoreFilterPure defaultFilter (
