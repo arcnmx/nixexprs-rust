@@ -23,8 +23,8 @@ self: super: with super.lib; let
     unstable = rself.distChannel {
       # pinned from https://rust-lang.github.io/rustup-components-history/
       channel = "nightly";
-      date = "2022-12-16";
-      sha256 = "sha256-q+np1oKvEY1lZZaz/PAyR6kGGne7ixU5o0KIpeo7JBA=";
+      date = "2023-01-17";
+      sha256 = "sha256-jUgZNMXkqapR0TKepDB6ZfTszudLWY6+AImVLV3DXMI=";
     };
 
     latest = rself.releases.${lib.last (lib.attrNames rself.releases)};

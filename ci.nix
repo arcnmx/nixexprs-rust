@@ -30,7 +30,7 @@ in {
     };
     nightly = {
       inputs = mapAttrs (_: rustPackages) {
-        inherit (channels.rust) nightly;
+        inherit (channels.rust) nightly unstable;
       };
       warn = true;
       cache.enable = false;
