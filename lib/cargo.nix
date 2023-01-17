@@ -167,6 +167,8 @@ in {
   , globalIgnore ? [ "/.cargo/" "/.github/" ".direnv" ".envrc" "*.nix" "flake.lock" ]
   , cargoLock ? null
   , outputHashes ? { }
+  , name ? "crate"
+  , version ? "0.0.0"
   }: let
     paths = if baseNameOf path == "Cargo.toml" then {
       cargoTomlFile = path;
@@ -183,7 +185,8 @@ in {
       else { lockFile = paths.root + "/Cargo.lock"; };
     cargoToml = importTOML paths.cargoTomlFile;
     crate = cargoToml // {
-      inherit (crate.package) name version;
+      name = crate.package.name or name;
+      version = crate.package.version or version;
       inherit (paths) root cargoTomlFile;
       inherit parent sourceInfo;
       lock = let
@@ -266,24 +269,24 @@ in {
       srcs = crate.pkgSrcs ++ concatLists (mapAttrsToList (_: c: c.pkgSrcs) crate.members);
       workspaceSrcs = flattenFiles crate.root (filterFilesRecursive crate.root crate.filter.workspace);
       pkgSrc = let
-        pname = crate.package.name + "-pkgsource";
+        pname = crate.name or name + "-pkgsource";
       in cleanSourceWith {
         src = crate.root;
         inherit (crate) filter;
-        name = "${pname}-${crate.package.version}";
+        name = "${pname}-${crate.version}";
       } // {
         inherit pname sourceInfo;
-        inherit (crate.package) version;
+        inherit (crate) version;
       };
       src = let
-        pname = crate.package.name + "-source";
+        pname = crate.name + "-source";
       in cleanSourceWith {
         src = crate.root;
         filter = crate.filter.workspace;
-        name = "${pname}-${crate.package.version}";
+        name = "${pname}-${crate.version}";
       } // {
         inherit pname sourceInfo;
-        inherit (crate.package) version;
+        inherit (crate) version;
       };
       outPath = paths.cargoTomlFile;
     };
