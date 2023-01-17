@@ -226,7 +226,7 @@ in {
       components = pkgRefAttrs (map (ext: annotateComponent (pkgRef ext)) target.components or []);
       extensions = pkgRefAttrs (map (ext: annotateExtension targetName (pkgRef ext)) target.extensions or []);
       dependencies =
-        optional (any (p: p == pname) ["llvm-tools-preview" "miri-preview" "clippy-preview" "rls-preview" "rustc-dev"]) "rustc";
+        optional (any (p: p == pname) ["llvm-tools-preview" "miri-preview" "clippy-preview" "rls-preview" "rustc-dev" "rustfmt-preview"]) "rustc";
     };
     annotateComponent = comp: comp // {
       output = comp.name;
