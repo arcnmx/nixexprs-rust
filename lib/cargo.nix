@@ -7,10 +7,10 @@ self: super: let
   ;
   inherit (super)
     hasPrefix removePrefix concatStringsSep splitString
-    singleton head tail last init elem elemAt filter partition any concatLists concatMap
+    singleton head tail last init elem elemAt findFirst filter partition any concatLists concatMap
     genAttrs mapAttrsToList listToAttrs nameValuePair
     optional optionalString mapNullable
-    makeOverridable
+    makeOverridable makeExtensible
     cleanSourceWith importTOML
     fakeHash warn
   ;
@@ -110,6 +110,7 @@ in {
       __toString = self: self.name;
     };
     mapPackage3 = crate: lock: pkg: let
+      crateIsPkg = crate: crate.package.name == pkg.name;
       p = pkg // {
         pname = "${pkg.name}-${pkg.version}";
         descriptor = packageDescriptor pkg;
@@ -127,6 +128,9 @@ in {
         src = makeOverridable (fetchSource p) {
           inherit (crate) src;
         };
+        crate =
+          if crateIsPkg crate then crate
+          else findFirst crateIsPkg null (attrValues crate.members);
       };
     in p;
     mapPackage2 = crate: lock: pkg: mapPackage3 crate lock (if pkg ? branch then removeBranch pkg else pkg);
@@ -161,6 +165,7 @@ in {
     };
   in {
     path
+  , cargoToml ? null
   , parent ? null
   , self ? null
   , sourceInfo ? self.sourceInfo or null
@@ -169,7 +174,7 @@ in {
   , outputHashes ? { }
   , name ? "crate"
   , version ? "0.0.0"
-  }: let
+  }@args: let
     paths = if baseNameOf path == "Cargo.toml" then {
       cargoTomlFile = path;
       root = dirOf path;
@@ -183,14 +188,16 @@ in {
       if cargoLock != null then cargoLock
       else if parent != null then parent.cargoLock
       else { lockFile = paths.root + "/Cargo.lock"; };
-    cargoToml = importTOML paths.cargoTomlFile;
-    crate = cargoToml // {
-      name = crate.package.name or name;
-      version = crate.package.version or version;
+    cargoToml =
+      if args.cargoToml or null != null
+      then args.cargoToml
+      else importTOML paths.cargoTomlFile;
+    crate = makeExtensible (crate: cargoToml // {
+      name = crate.cargoToml.package.name or name;
+      version = crate.cargoToml.package.version or version;
       inherit (paths) root cargoTomlFile;
-      inherit parent sourceInfo;
-      lock = let
-        inherit (crate) lock;
+      inherit parent sourceInfo cargoToml;
+      lock = makeExtensible (lock: let
         local = partition (p: p.source.type == "local") lock.packages;
       in {
         version = lock.data.version or (detectLockVersion lock.data);
@@ -217,7 +224,7 @@ in {
           explicit = cargoLockArgs.outputHashes or { } // outputHashes;
         };
         outputHashes = lock.gitOutputHashes.missing // cargoLockArgs.outputHashes or lock.gitOutputHashes.default // lock.gitOutputHashes.explicit;
-      };
+      });
       cargoLock = cargoLockArgs // {
         inherit (crate.lock) outputHashes;
       };
@@ -226,7 +233,7 @@ in {
         inherit path globalIgnore outputHashes self sourceInfo;
         parent = crate;
       }) crate.workspaceFiles;
-      workspaceFiles = genAttrs crate.workspace.members or [ ] (w: crate.root + "/${w}");
+      workspaceFiles = genAttrs crate.cargoToml.workspace.members or [ ] (w: crate.root + "/${w}");
       filter = let
         noopFilter = _: _: true;
         defaultFilter = if pathExists (crate.root + "/.git")
@@ -289,7 +296,7 @@ in {
         inherit (crate) version;
       };
       outPath = paths.cargoTomlFile;
-    };
+    });
   in crate;
 
   importCargo = args: if isPath args || isString args then importCargo' {

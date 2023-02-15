@@ -104,13 +104,13 @@ in {
     { version ? null, name ? null
     , crate ? crateName name
     , baseUrl ? "docs.rs"
-    , url ? genDocsUrl { inherit version name baseUrl; } + escapePattern "/${crate}/"
+    , url ? genDocsUrl { inherit version name baseUrl; } + escapePattern "/${crate}" + "/?"
     }: mapPattern {
       pattern = ''documentation = "'' + url + ''"$'';
     };
     genDocsUrl = { version, name, baseUrl ? "docs.rs" }: let
       base =
-        if baseUrl == "docs.rs" then escapePattern "https://docs.rs/${name}"
+        if baseUrl == "docs.rs" then "https?" + escapePattern "://docs.rs/${name}"
         else if baseUrl == null then ".*"
         else baseUrl;
     in "${base}/${escapePattern version}";
