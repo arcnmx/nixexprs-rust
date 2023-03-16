@@ -154,7 +154,7 @@ in {
     cp ${path} $out/${escapeShellArg name}
   '') paths);
 
-  adoc2md = { runCommand, asciidoctor, pandoc }:
+  adoc2md = { runCommand, asciidoctor, pandoc, buildPackages ? { } }:
   { src
   , name ? src.name or (removeSuffix ".adoc" (baseNameOf src) + ".md")
   , attributes ? { }
@@ -167,6 +167,11 @@ in {
     inherit nativeBuildInputs;
     passthru = args.passthru or { } // {
       inherit attributes pandocArgs asciidoctorArgs;
+    };
+    meta = args.meta or { } // {
+      broken = args.broken or false || !(builtins.tryEval
+        asciidoctor.meta.available && pandoc.meta.available && buildPackages.ghc.meta.available or true
+      ).value;
     };
   } // removeAttrs args [ "name" "attributes" "pandocArgs" "asciidoctorArgs" ]) ''
     asciidoctor $src -b docbook5 -o - ${escapeShellArgs asciidoctorArgs} \
