@@ -85,7 +85,12 @@ in {
 
     preferLocalBuild = true;
     nativeBuildInputs = optionals (hostPlatform.isLinux && !hostPlatform.isMusl) [ autoPatchelfHook ];
-    buildInputs = buildInputs ++ optionals (target.name == "rustc") [ zlib stdenv.cc.cc ];
+    buildInputs = buildInputs ++ optionals (
+      target.name == "rustc" ||
+      target.name == "cargo" ||
+      hasPrefix "rust-std" target.name ||
+      hasPrefix "rust-analyzer" target.name
+    ) [ zlib stdenv.cc.cc ];
 
     dontStrip = true;
     forceShare = " ";
