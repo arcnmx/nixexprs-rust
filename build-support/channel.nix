@@ -133,6 +133,7 @@
       rust-analyzer-unwrapped = cself.tools.rust-analyzer or pkgs.rust-analyzer-unwrapped;
       rust-analyzer = rlib.wrapRustAnalyzer {
         inherit (cself) rust-src rust-analyzer-unwrapped;
+        cargoEnv = cself.cargo-cc // cself.rust-cc;
       };
 
       rust-analyzer-upstream = rlib.wrapRustAnalyzer {

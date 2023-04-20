@@ -2,6 +2,9 @@
   ccEnvVar = n: builtins.replaceStrings [ "-" ] [ "_" ] n;
   cargoEnvVar = n: ccEnvVar (lib.toUpper n);
   rust'lib = pkgs.rust.lib;
+  makeWrapperEnv = env: with lib; concatStringsSep " " (flatten (
+    mapAttrsToList (k: v: [ "--set-default" k ''"${toString v}"'' ]) env
+  ));
 in {
   rustTargetEnvironment = lib.makeOverridable ({
     pkgs ? null
@@ -193,7 +196,7 @@ in {
     installPhase = ''
       mkdir -p $out/bin
       makeWrapper $cargo/bin/cargo $out/bin/cargo --argv0 '$0' \
-        ${with lib; concatStringsSep " " (flatten (mapAttrsToList (k: v: [ "--set-default" k ''"${toString v}"'' ]) cargoEnv))} \
+        ${makeWrapperEnv cargoEnv} \
         --prefix PATH : $rustc/bin
         #--set-default RUSTC $rustc/bin/rustc
         #--set-default RUSTDOC $rustc/bin/rustdoc
@@ -283,7 +286,7 @@ in {
     '';
   });
 
-  wrapRustAnalyzer = { stdenvNoCC, makeWrapper }: { rust-src, rust-analyzer-unwrapped }: stdenvNoCC.mkDerivation {
+  wrapRustAnalyzer = { stdenvNoCC, makeWrapper }: { rust-src, rust-analyzer-unwrapped, cargoEnv ? { } }: stdenvNoCC.mkDerivation {
     pname = "rust-analyzer-wrapped";
     version = rust-analyzer-unwrapped.version or "unknown";
 
@@ -296,6 +299,7 @@ in {
     buildCommand = ''
       mkdir -p $out/bin
       makeWrapper $rustAnalyzer/bin/rust-analyzer $out/bin/rust-analyzer \
+        ${makeWrapperEnv cargoEnv} \
         --set-default RUST_SRC_PATH "$rustcSrc"
     '';
 
