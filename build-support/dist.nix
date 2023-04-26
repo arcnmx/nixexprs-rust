@@ -88,9 +88,11 @@ in {
     buildInputs = buildInputs ++ optionals (
       target.name == "rustc" ||
       target.name == "cargo" ||
-      hasPrefix "rust-std" target.name ||
-      hasPrefix "rust-analyzer" target.name
-    ) [ zlib stdenv.cc.cc ];
+      hasPrefix "rust-analyzer" target.name ||
+      hasPrefix "rust-std" target.name
+    ) [ stdenv.cc.cc ] ++ optionals (
+      target.name == "rustc"
+    ) [ zlib ];
 
     dontStrip = true;
     forceShare = " ";
