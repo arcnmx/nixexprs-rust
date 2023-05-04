@@ -169,11 +169,11 @@ in {
       inherit attributes pandocArgs asciidoctorArgs;
     };
     meta = args.meta or { } // {
-      broken = args.broken or false || !(builtins.tryEval
+      broken = args.meta.broken or false || !(builtins.tryEval (
         asciidoctor.meta.available && pandoc.meta.available && buildPackages.ghc.meta.available or true
-      ).value;
+      )).value;
     };
-  } // removeAttrs args [ "name" "attributes" "pandocArgs" "asciidoctorArgs" ]) ''
+  } // removeAttrs args [ "name" "meta" "passthru" "attributes" "pandocArgs" "asciidoctorArgs" ]) ''
     asciidoctor $src -b docbook5 -o - ${escapeShellArgs asciidoctorArgs} \
       ${toString (mapAttrsToList (k: v: ''-a "${k}=${v}"'') attributes)} |
       pandoc -f docbook -t gfm ${escapeShellArgs pandocArgs} > $out
