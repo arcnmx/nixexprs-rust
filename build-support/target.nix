@@ -13,8 +13,8 @@ in {
   , triple ? self.rustTargetFor hostPlatform
   , stdenvCc ? stdenv.cc
   , ar ? "${stdenvCc.bintools.bintools}/bin/${stdenvCc.targetPrefix}ar"
-  , cc ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}cc"
-  , cxx ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}c++"
+  , cc ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}${if stdenvCc.isClang or false then "clang" else "cc"}"
+  , cxx ? "${stdenvCc}/bin/${stdenvCc.targetPrefix}${if stdenvCc.isClang or false then "clang++" else "c++"}"
   , linker ?
     if linkerFlavor == "gcc" then "${stdenvCc}/bin/${stdenvCc.targetPrefix}cc"
     else if linkerFlavor == "ld" then "${stdenvCc}/bin/${stdenvCc.targetPrefix}ld"
