@@ -18,7 +18,7 @@
   };
   releasesToTest = filterAttrs (_: channel:
     # limit the releases tested due to disk space limitations when building/downloading
-    versionAtLeast channel.version "1.46"
+    versionAtLeast channel.version "1.59"
   ) channels.rust.releases;
 in {
   name = "nixexprs-rust";
