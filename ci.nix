@@ -22,7 +22,10 @@
   ) channels.rust.releases;
 in {
   name = "nixexprs-rust";
-  ci.gh-actions.enable = true;
+  ci = {
+    version = "v0.6";
+    gh-actions.enable = true;
+  };
   tasks = {
     releases.inputs = mapAttrs (_: rustPackages) releasesToTest;
     impure.inputs = mapAttrs (_: rustPackages) {
