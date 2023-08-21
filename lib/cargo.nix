@@ -3,12 +3,12 @@ self: super: let
     replaceStrings match
     dirOf baseNameOf pathExists readFile
     mapAttrs removeAttrs attrNames attrValues
-    isPath isString
+    isPath isString isAttrs
   ;
   inherit (super)
-    hasPrefix removePrefix concatStringsSep splitString
+    isStringLike hasPrefix removePrefix concatStringsSep splitString
     singleton head tail last init elem elemAt findFirst filter partition any concatLists concatMap
-    genAttrs mapAttrsToList listToAttrs nameValuePair
+    genAttrs optionalAttrs mapAttrsToList listToAttrs nameValuePair
     optional optionalString mapNullable
     makeOverridable makeExtensible
     cleanSourceWith importTOML
@@ -43,6 +43,13 @@ in {
       if any (p: p ? checksum) lock.package or [] then 2
       else if any (hasPrefix "checksum ") (attrNames lock.metadata or {}) then 1
       else null;
+    mapChecksum = checksum: let
+      checksum'obj = {
+        __toString = checksum: checksum.hash;
+      } // optionalAttrs (isAttrs checksum) checksum;
+    in optionalAttrs (isStringLike checksum) {
+      hash = checksum;
+    } // checksum'obj;
     fetchSource = pkg: { fetchurl ? builtins.fetchurl, fetchGit ? builtins.fetchGit, fetchgit ? null, src ? null }: let
       inherit (pkg) source;
     in {
@@ -54,16 +61,25 @@ in {
       git = if fetchgit != null then fetchgit {
         url = source.srcInfo.url;
         rev = source.git.hash;
-        ${if pkg.checksum or null != null then "sha256" else null} = pkg.checksum;
+        ${if pkg.checksum.hash or null != null then "sha256" else null} = pkg.checksum.hash;
+        ${if pkg.checksum ? submodules then "fetchSubmodules" else null} = pkg.checksum.submodules;
+        ${if pkg.checksum ? shallow then "deepClone" else null} = !pkg.checksum.shallow;
+        ${if source.git ? branch || hasPrefix "refs/heads/" source.git.ref or "" then "branchName" else null} =
+          if source.git ? branch then "refs/heads/${source.git.branch}"
+          else removePrefix "refs/heads/" source.git.rev;
       } else fetchGit {
         url = source.srcInfo.url;
         rev = source.git.hash;
-        ${if source.git ? rev then "allRefs" else null} = true;
+        ${if source.git ? rev then "allRefs" else null} =
+          ! source.git ? tag &&
+          ! source.git ? branch &&
+          ! hasPrefix "refs/" source.git.rev;
         ${if source.git ? tag || source.git ? branch || hasPrefix "refs/" source.git.ref or "" then "ref" else null} =
           if source.git ? tag then "refs/tags/${source.git.tag}"
           else if source.git ? branch then "refs/heads/${source.git.branch}"
           else source.git.rev;
-        ${if pkg.checksum ? submodules then "submodules" else null} = pkg.checksum.submodules;
+        submodules = pkg.checksum.submodules or true;
+        ${if pkg.checksum ? shallow then "shallow" else null} = pkg.checksum.shallow;
       };
       path = warn "TODO: path+ source" null;
       directory = warn "TODO: directory+ source" { };
@@ -81,7 +97,7 @@ in {
         registry.srcInfo = if parsed.url == cratesRegistryUrl then {
           name = "crate-${pkg.name}-${pkg.version}.tar.gz";
           url = "https://crates.io/api/v1/crates/${pkg.name}/${pkg.version}/download";
-          sha256 = pkg.checksum or null;
+          sha256 = pkg.checksum.hash or null;
         } else warn "unknown registry ${url}" null;
         git = let
           parsed = matchGitUrl url;
@@ -89,7 +105,7 @@ in {
         in {
           srcInfo = {
             url = elemAt parsed 0;
-            sha256 = pkg.checksum or null;
+            sha256 = pkg.checksum.hash or null;
           };
           git = {
             hash = elemAt parsed 3;
@@ -103,18 +119,18 @@ in {
     in if match == null
       then throw "cannot parse source ${source}"
       else parsed;
-    mapDep = lock: name: let
-    in {
+    mapDep = lock: name: {
       name = parsePackageDescriptor name;
       pkg = lock.pkg.${name};
       __toString = self: self.name;
     };
     mapPackage3 = crate: lock: pkg: let
       crateIsPkg = crate: crate.package.name == pkg.name;
+      checksum = lock.gitOutputHashes.explicit.${p.pname} or pkg.checksum or null;
       p = pkg // {
         pname = "${pkg.name}-${pkg.version}";
         descriptor = packageDescriptor pkg;
-        checksum = lock.gitOutputHashes.explicit.${p.pname} or pkg.checksum or null;
+        checksum = mapChecksum checksum;
         source = if pkg ? source
           then parseSource pkg
           else {
@@ -135,9 +151,9 @@ in {
     in p;
     mapPackage2 = crate: lock: pkg: mapPackage3 crate lock (if pkg ? branch then removeBranch pkg else pkg);
     mapPackage1 = crate: lock: pkg: let
-      checksum = lock.metadata."checksum ${packageDescriptor pkg}" or null;
+      hash = lock.metadata."checksum ${packageDescriptor pkg}" or null;
     in mapPackage2 crate lock (pkg // {
-      inherit checksum;
+      checksum = mapChecksum hash;
     });
     removeBranch = pkg: let
       source = parseSource pkg;
@@ -218,12 +234,13 @@ in {
         gitPackages = filter (p: p.source.type == "git") lock.externalPackages;
         gitOutputHashes = let
           gitPackages = filter (p: p.data.checksum or null == null) lock.gitPackages;
+          checksumPair = p: checksum: nameValuePair p.pname (mapChecksum checksum);
         in {
-          default = listToAttrs (map (p: nameValuePair p.pname p.src.narHash or p.src.sha256 or fakeHash) lock.gitPackages);
-          missing = listToAttrs (map (p: nameValuePair p.pname lock.gitOutputHashes.default.${p.pname}) gitPackages);
+          default = listToAttrs (map (p: checksumPair p p.src.narHash or p.src.sha256 or fakeHash) lock.gitPackages);
+          missing = listToAttrs (map (p: checksumPair p lock.gitOutputHashes.default.${p.pname}) gitPackages);
           explicit = cargoLockArgs.outputHashes or { } // outputHashes;
         };
-        outputHashes = lock.gitOutputHashes.missing // cargoLockArgs.outputHashes or lock.gitOutputHashes.default // lock.gitOutputHashes.explicit;
+        outputHashes = mapAttrs (_: mapChecksum) (lock.gitOutputHashes.missing // cargoLockArgs.outputHashes or lock.gitOutputHashes.default // lock.gitOutputHashes.explicit);
       });
       cargoLock = cargoLockArgs // {
         inherit (crate.lock) outputHashes;
