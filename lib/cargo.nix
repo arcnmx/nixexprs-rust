@@ -125,7 +125,7 @@ in {
       __toString = self: self.name;
     };
     mapPackage3 = crate: lock: pkg: let
-      crateIsPkg = crate: crate.package.name == pkg.name;
+      crateIsPkg = crate: crate.package.name or null == pkg.name;
       checksum = lock.gitOutputHashes.explicit.${p.pname} or pkg.checksum or null;
       p = pkg // {
         pname = "${pkg.name}-${pkg.version}";
@@ -223,7 +223,9 @@ in {
           (nameValuePair p.name p)
           (nameValuePair p.pname p)
           (nameValuePair p.descriptor p)
-        ]) lock.packages);
+        ] ++ optional (p.source != null)
+          (nameValuePair "${p.name} ${p.version}" p)
+        ) lock.packages);
         packages = map ({
           "3" = mapPackage3;
           "2" = mapPackage2;
