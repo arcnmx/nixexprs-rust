@@ -78,6 +78,7 @@
       rust-sysroot = rlib.rustSysroot {
         std = cself.sysroot-std;
         dev = cself.sysroot-dev;
+        rustc = cself.rustc-unwrapped;
       };
       rustc = rlib.wrapRustc {
         rustc = cself.rustc-unwrapped;
