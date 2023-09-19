@@ -130,7 +130,7 @@ in {
     pname = "rustc-wrapped";
     inherit (rustc) version;
     meta = rustc.meta // {
-      meta.mainProgram = "rustc";
+      mainProgram = "rustc";
     };
 
     preferLocalBuild = true;
@@ -182,7 +182,7 @@ in {
     pname = "cargo-wrapped";
     inherit (cargo) version;
     meta = cargo.meta // {
-      meta.mainProgram = "cargo";
+      mainProgram = "cargo";
     };
 
     preferLocalBuild = true;
