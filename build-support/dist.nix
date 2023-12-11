@@ -89,6 +89,7 @@ in {
       target.name == "rustc" ||
       target.name == "cargo" ||
       hasPrefix "rust-analyzer" target.name ||
+      hasPrefix "rustc-codegen-cranelift" target.name ||
       hasPrefix "rust-std" target.name
     ) [ stdenv.cc.cc ] ++ optionals (
       target.name == "rustc"
@@ -233,7 +234,7 @@ in {
       components = pkgRefAttrs (map (ext: annotateComponent (pkgRef ext)) target.components or []);
       extensions = pkgRefAttrs (map (ext: annotateExtension targetName (pkgRef ext)) target.extensions or []);
       dependencies =
-        optional (any (p: p == pname) ["llvm-tools-preview" "miri-preview" "clippy-preview" "rls-preview" "rustc-dev" "rustfmt-preview"]) "rustc";
+        optional (any (p: p == pname) ["llvm-tools-preview" "miri-preview" "clippy-preview" "rls-preview" "rustc-dev" "rustfmt-preview" "rust-analyzer-preview" "rustc-codegen-cranelift-preview"]) "rustc";
     };
     annotateComponent = comp: comp // {
       output = comp.name;
