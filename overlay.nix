@@ -83,6 +83,7 @@ self: super: with super.lib; let
       "1.74.0" = "sha256-U2yfueFohJHjif7anmJB5vZbpP7G6bICH4ZsjtufRoU=";
       "1.74.1" = "sha256-PjvuouwTsYfNKW5Vi5Ye7y+lL7SsWGBxCtBOOm2z14c=";
       "1.75.0" = "sha256-SXRtAuO4IqNOQq+nLbrsDFbVk+3aVA8NNpSZsKlVH/8=";
+      "1.76.0" = "sha256-e4mlaJehWBymYxJGgnbuCObVlqMlQSilZ8FljG9zPHY=";
     };
 
     releases = lib.mapAttrs (channel: sha256: rself.distChannel {

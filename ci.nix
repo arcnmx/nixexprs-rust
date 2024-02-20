@@ -18,12 +18,12 @@
   };
   releasesToTest = filterAttrs (_: channel:
     # limit the releases tested due to disk space limitations when building/downloading
-    versionAtLeast channel.version "1.66"
+    versionAtLeast channel.version "1.74"
   ) channels.rust.releases;
 in {
   name = "nixexprs-rust";
   ci = {
-    version = "v0.6";
+    version = "v0.7";
     gh-actions.enable = true;
   };
   tasks = {
