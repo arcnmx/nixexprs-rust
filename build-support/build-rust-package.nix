@@ -1,6 +1,6 @@
 { path, lib
 , rustChannel, buildRustPackage ? rustChannel.buildRustPackage
-, rust, rustPlatform
+, rust ? null, rustPlatform
 , stdenv
 , cargo, windows ? null
 , rustc

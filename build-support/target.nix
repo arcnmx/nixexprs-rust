@@ -463,11 +463,19 @@ in {
         -e "s|target/$rustTargetPlatformSpec/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetName}}/|" \
         $out/nix-support/setup-hook
     '';
-  in platform.extend (self: super: {
+  in platform.extend (self: super: let
+    rustDeprecated = ! (lib.functionArgs super.buildRustPackage.override) ? "rust";
+    buildOverrideArgs = if rustDeprecated then {
+      inherit rustc cargo;
+    } else {
+      inherit rust;
+    };
+  in {
+    inherit rustc cargo;
     callPackage = newScope {
       rustPlatform = self;
       inherit rust;
-      inherit (self.rust) rustc cargo;
+      inherit (self) rustc cargo;
       inherit (self)
         buildRustPackage fetchCargoTarball importCargoLock
         cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
@@ -479,15 +487,15 @@ in {
     rustcSrc = rust-src;
     buildRustPackage = rlib.buildRustPackage.override {
       rustPlatform = self;
-      buildRustPackage = super.buildRustPackage.override {
-        inherit stdenv rust;
+      buildRustPackage = super.buildRustPackage.override (buildOverrideArgs // {
+        inherit stdenv;
         inherit (self)
           fetchCargoTarball
           cargoBuildHook cargoCheckHook cargoInstallHook
           cargoSetupHook
         ;
         ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
-      };
+      });
       inherit (self.rust) rustc cargo;
       inherit rust;
       inherit path lib stdenv;
