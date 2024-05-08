@@ -450,17 +450,21 @@ in {
     } {
       inherit cargo rustc stdenv;
     });
-    patchSetupHook = hook: runCommand hook.name {
+    patchSetupHook = hook: runCommand hook.name rec {
       preferLocalBuild = true;
       inherit hook;
-      rustTargetPlatformSpec = rust.toRustTargetSpec stdenv.hostPlatform;
+      rustTargetPlatformSpec = hook.rustHostPlatformSpec or (rust.toRustTargetSpec stdenv.hostPlatform);
+      targetSubdirectory = hook.targetSubdirectory or targetName;
       targetName = rlib.rustTargetFor stdenv.hostPlatform;
+      rustBuildPlatform = stdenv.buildPlatform.rust.rustcTarget;
     } ''
       mkdir $out
       cp --no-preserve=mode -r $hook/* $out/
       sed -i \
+        -e "s/\"CARGO_BUILD_TARGET=$rustBuildPlatform\"//" \
         -e "s/--target $rustTargetPlatformSpec//" \
         -e "s|target/$rustTargetPlatformSpec/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetName}}/|" \
+        -e "s|target/$targetSubdirectory/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetSubdirectory}}/|" \
         $out/nix-support/setup-hook
     '';
   in platform.extend (self: super: let
