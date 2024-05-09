@@ -65,6 +65,10 @@ in {
     enable = true;
     signingKey = "";
   };
+  nix.config = {
+    # trying to prevent downloads stalling...
+    max-jobs = 2;
+  };
   jobs = let
     mkRustVersion = version:
       if version == channels.rust.latest.version then "stable"
