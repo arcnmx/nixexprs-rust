@@ -79,8 +79,365 @@ jobs:
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  mac-x86:
-    name: nixexprs-rust-mac-x86
+  nixpkgs-23_11-aarch64-darwin:
+    name: rust (nixpkgs-stable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-1_74-aarch64-darwin:
+    name: rust 1.74 (nixpkgs-stable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-1_74-x86_64-linux:
+    name: rust 1.74 (nixpkgs-stable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_74-x86_64-linux.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-1_76-aarch64-darwin:
+    name: rust 1.76 (nixpkgs-stable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-1_76-x86_64-linux:
+    name: rust 1.76 (nixpkgs-stable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-1_76-x86_64-linux.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-stable-aarch64-darwin:
+    name: rust stable (nixpkgs-stable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-rust-stable-x86_64-linux:
+    name: rust stable (nixpkgs-stable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-23_11-rust-stable-x86_64-linux.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-23_11-x86_64-darwin:
+    name: rust (nixpkgs-stable-macos)
     runs-on: macos-13
     steps:
     - id: checkout
@@ -95,7 +452,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.mac-x86.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-darwin.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -103,7 +460,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.mac-x86.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-darwin.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -114,7 +471,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.mac-x86.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-darwin.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -126,12 +483,12 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.mac-x86.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-darwin.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  stable:
-    name: nixexprs-rust-stable
+  nixpkgs-23_11-x86_64-linux:
+    name: rust (nixpkgs-stable)
     runs-on: ubuntu-latest
     steps:
     - id: checkout
@@ -146,7 +503,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-linux.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -154,7 +511,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-linux.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -165,7 +522,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-linux.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -177,12 +534,12 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable.run.test
+        attrs: ci.job.nixpkgs-23_11-x86_64-linux.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  stable-macos:
-    name: nixexprs-rust-stable-macos
+  nixpkgs-unstable-aarch64-darwin:
+    name: rust (nixpkgs-unstable-macos)
     runs-on: macos-latest
     steps:
     - id: checkout
@@ -197,7 +554,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-aarch64-darwin.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -205,7 +562,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-aarch64-darwin.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -216,7 +573,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-aarch64-darwin.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -228,12 +585,63 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-aarch64-darwin.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  unstable:
-    name: nixexprs-rust-unstable
+  nixpkgs-unstable-rust-1_74-aarch64-darwin:
+    name: rust 1.74 (nixpkgs-unstable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-unstable-rust-1_74-x86_64-linux:
+    name: rust 1.74 (nixpkgs-unstable)
     runs-on: ubuntu-latest
     steps:
     - id: checkout
@@ -248,7 +656,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-x86_64-linux.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -256,7 +664,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-x86_64-linux.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -267,7 +675,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-x86_64-linux.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -279,12 +687,12 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_74-x86_64-linux.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  unstable-macos:
-    name: nixexprs-rust-unstable-macos
+  nixpkgs-unstable-rust-1_76-aarch64-darwin:
+    name: rust 1.76 (nixpkgs-unstable-macos)
     runs-on: macos-latest
     steps:
     - id: checkout
@@ -299,7 +707,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-aarch64-darwin.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -307,7 +715,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-aarch64-darwin.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -318,7 +726,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-aarch64-darwin.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -330,7 +738,211 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-macos.run.test
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-unstable-rust-1_76-x86_64-linux:
+    name: rust 1.76 (nixpkgs-unstable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-1_76-x86_64-linux.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-unstable-rust-stable-aarch64-darwin:
+    name: rust stable (nixpkgs-unstable-macos)
+    runs-on: macos-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-aarch64-darwin.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-aarch64-darwin.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-aarch64-darwin.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-aarch64-darwin.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-unstable-rust-stable-x86_64-linux:
+    name: rust stable (nixpkgs-unstable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-rust-stable-x86_64-linux.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
+  nixpkgs-unstable-x86_64-linux:
+    name: rust (nixpkgs-unstable)
+    runs-on: ubuntu-latest
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-x86_64-linux.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-x86_64-linux.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-x86_64-linux.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.nixpkgs-unstable-x86_64-linux.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache

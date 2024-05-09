@@ -1,4 +1,5 @@
 { config, pkgs, channels, lib, ... }: with lib; let
+  stable = "23.11";
   src = channels.cipkgs.nix-gitignore.gitignoreSourcePure [ ''
     /ci.nix
     /ci/
@@ -21,17 +22,11 @@
     inherit (channels.rust.releases) "1.74.1" "1.76.0";
     inherit (channels.rust) latest;
   };
-in {
-  name = "nixexprs-rust";
-  ci = {
-    version = "v0.7";
-    gh-actions.enable = true;
+  mkReleaseTask = channel: {
+    inputs.release = rustPackages channel;
+    cache.wrap = true;
   };
-  tasks = {
-    releases = {
-      inputs = mapAttrs (_: rustPackages) releasesToTest;
-      cache.wrap = true;
-    };
+  defaultTasks = {
     impure = {
       inputs = mapAttrs (_: rustPackages) {
         inherit (channels.rust) stable beta;
@@ -43,7 +38,7 @@ in {
         inherit (channels.rust) nightly unstable;
       };
       warn = true;
-      cache.enable = false;
+      cache.wrap = true;
     };
     shell.inputs.stable = pkgs.ci.command {
       name = "shell";
@@ -59,25 +54,47 @@ in {
       impure = true;
     };
   };
+in {
+  name = "nixexprs-rust";
+  ci = {
+    version = "v0.7";
+    gh-actions.enable = true;
+  };
   channels.rust.path = src;
-  jobs = listToAttrs (flip crossLists [ # build matrix
-    [ # channels
-      { nixpkgs = "unstable"; }
-      { nixpkgs = "23.11"; name = "stable"; }
-    ] [ # systems
-      { system = "x86_64-linux"; }
-      { system = "aarch64-darwin"; postfix = "-macos"; }
-    ]
-  ] ({ nixpkgs, name ? nixpkgs }: { system, postfix ? "" }: nameValuePair "${name}${postfix}" {
-    inherit system;
-    channels = { inherit nixpkgs; };
-    warn = hasSuffix "-darwin" system;
-  })) // {
-    mac-x86 = {
-      system = "x86_64-darwin";
-      channels.nixpkgs = "23.11";
-      warn = true;
+  jobs = let
+    mkRustVersion = version:
+      if version == channels.rust.latest.version then "stable"
+      else versions.majorMinor version;
+    mkName = { nixpkgs, system, release, ... }:
+      "rust"
+      + optionalString (release != null) " ${mkRustVersion release.version}"
+      + " (nixpkgs-" + (if nixpkgs == stable then "stable" else nixpkgs)
+      + optionalString (hasSuffix "-darwin" system) "-macos"
+      + ")";
+    mkAttrName = { nixpkgs, system, release }: replaceStrings [ "." ] [ "_" ] (
+      "nixpkgs-${nixpkgs}"
+      + optionalString (release != null) "-rust-${mkRustVersion release.version}"
+      + "-${system}"
+    );
+    mkJob = { nixpkgs, system, release }@args: nameValuePair (mkAttrName args) {
+      inherit system;
+      ci.gh-actions.name = mkName args;
+      channels = { inherit nixpkgs; };
+      tasks = if release == null then defaultTasks else {
+        release = mkReleaseTask release;
+      };
+      warn = hasSuffix "-darwin" system;
     };
+    matrix = lib.cartesianProduct or cartesianProductOfSets {
+      nixpkgs = [ "unstable" stable ];
+      system = [ "x86_64-linux" "aarch64-darwin" ];
+      release = attrValues releasesToTest ++ [ null ];
+    } ++ singleton {
+      system = "x86_64-darwin";
+      nixpkgs = stable;
+      release = null;
+    };
+  in listToAttrs (map mkJob matrix) // {
     cross-arm = { channels, pkgs, ... }: {
       system = "x86_64-linux";
       channels.nixpkgs.version = "22.11";
@@ -92,7 +109,7 @@ in {
         };
       };
 
-      tasks = mkForce {
+      tasks = {
         # build and run a bare-metal arm example
         # try it out! `nix run ci.job.cross-arm.test.cortex-m`
         cortex-m.inputs = channels.rust.stable.callPackage ./ci/cortex-m-quickstart/derivation.nix { };
