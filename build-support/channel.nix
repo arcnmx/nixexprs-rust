@@ -103,10 +103,10 @@
         inner = pkgs.cargo-binutils or pkgs.cargo-binutils-unwrapped or null;
         inherit (cself) bintools;
       };
-      xargo = pkgs.xargo.override {
+      xargo = if pkgs ? xargo then pkgs.xargo.override {
         inherit (cself) rustc cargo;
         rustcSrc = cself.rust-src;
-      };
+      } else (broken "xargo");
       gdb-unwrapped = pkgs.gdb;
       gdb = rlib.wrapGdb.override { gdb = cself.gdb-unwrapped; } {
         inherit (cself) rustc-unwrapped;

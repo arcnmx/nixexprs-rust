@@ -16,10 +16,11 @@
       };
     });
   };
-  releasesToTest = filterAttrs (_: channel:
+  releasesToTest = {
     # limit the releases tested due to disk space limitations when building/downloading
-    versionAtLeast channel.version "1.74"
-  ) channels.rust.releases;
+    inherit (channels.rust.releases) "1.74.1" "1.76.0";
+    inherit (channels.rust) latest;
+  };
 in {
   name = "nixexprs-rust";
   ci = {
@@ -27,9 +28,15 @@ in {
     gh-actions.enable = true;
   };
   tasks = {
-    releases.inputs = mapAttrs (_: rustPackages) releasesToTest;
-    impure.inputs = mapAttrs (_: rustPackages) {
-      inherit (channels.rust) stable beta;
+    releases = {
+      inputs = mapAttrs (_: rustPackages) releasesToTest;
+      cache.wrap = true;
+    };
+    impure = {
+      inputs = mapAttrs (_: rustPackages) {
+        inherit (channels.rust) stable beta;
+      };
+      cache.wrap = true;
     };
     nightly = {
       inputs = mapAttrs (_: rustPackages) {
