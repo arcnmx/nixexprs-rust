@@ -33,4 +33,5 @@
   '';
 
   meta.platforms = platforms.all;
+  passthru.ci.cache.wrap = true;
 }

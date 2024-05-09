@@ -61,6 +61,10 @@ in {
     gh-actions.enable = true;
   };
   channels.rust.path = src;
+  cache.cachix.ci = {
+    enable = true;
+    signingKey = "";
+  };
   jobs = let
     mkRustVersion = version:
       if version == channels.rust.latest.version then "stable"
@@ -112,7 +116,12 @@ in {
       tasks = {
         # build and run a bare-metal arm example
         # try it out! `nix run ci.job.cross-arm.test.cortex-m`
-        cortex-m.inputs = channels.rust.stable.callPackage ./ci/cortex-m-quickstart/derivation.nix { };
+        cortex-m = {
+          inputs = channels.rust.stable.callPackage ./ci/cortex-m-quickstart/derivation.nix { };
+          cache.inputs = with channels.rust.stable.buildChannel; [
+            rustc cargo
+          ];
+        };
       };
     };
   };
