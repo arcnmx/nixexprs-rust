@@ -97,7 +97,7 @@ in {
   in listToAttrs (map mkJob matrix) // {
     cross-arm = { channels, pkgs, ... }: {
       system = "x86_64-linux";
-      channels.nixpkgs.version = "22.11";
+      channels.nixpkgs.version = stable;
       channels.nixpkgs.args = {
         localSystem = "x86_64-linux";
         crossSystem = systems.examples.arm-embedded // {
