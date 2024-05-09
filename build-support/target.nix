@@ -456,7 +456,7 @@ in {
       rustTargetPlatformSpec = hook.rustHostPlatformSpec or (rust.toRustTargetSpec stdenv.hostPlatform);
       targetSubdirectory = hook.targetSubdirectory or targetName;
       targetName = rlib.rustTargetFor stdenv.hostPlatform;
-      rustBuildPlatform = stdenv.buildPlatform.rust.rustcTarget;
+      rustBuildPlatform = stdenv.buildPlatform.rust.rustcTarget or targetName;
     } ''
       mkdir $out
       cp --no-preserve=mode -r $hook/* $out/
