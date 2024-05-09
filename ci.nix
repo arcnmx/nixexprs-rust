@@ -7,7 +7,7 @@
   '' ./.gitignore ] ./.;
   rustPackages = channel: with channel.rustPlatform; {
     inherit rustc cargo
-      llvm-tools rls rust-analyzer gdb lldb;
+      llvm-tools rust-analyzer gdb lldb;
     miri = miri.overrideAttrs (old: {
       passthru = old.passthru or {} // {
         ci = old.passthru.ci or {} // {
