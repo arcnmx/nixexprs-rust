@@ -79,6 +79,57 @@ jobs:
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
+  mac-x86:
+    name: nixexprs-rust-mac-x86
+    runs-on: macos-13
+    steps:
+    - id: checkout
+      name: git clone
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - id: nix-install
+      name: nix install
+      uses: arcnmx/ci/actions/nix/install@v0.7
+    - id: ci-dirty
+      name: nix test dirty
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.mac-x86.run.test
+        command: ci-build-dirty
+        quiet: false
+        stdout: ${{ runner.temp }}/ci.build.dirty
+    - id: ci-test
+      name: nix test build
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.mac-x86.run.test
+        command: ci-build-realise
+        ignore-exit-code: true
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+    - env:
+        CI_EXIT_CODE: ${{ steps.ci-test.outputs.exit-code }}
+      id: ci-summary
+      name: nix test results
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.mac-x86.run.test
+        command: ci-build-summarise
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.dirty
+        stdout: ${{ runner.temp }}/ci.build.cache
+    - env:
+        CACHIX_SIGNING_KEY: ${{ secrets.CACHIX_SIGNING_KEY }}
+      id: ci-cache
+      if: always()
+      name: nix test cache
+      uses: arcnmx/ci/actions/nix/run@v0.7
+      with:
+        attrs: ci.job.mac-x86.run.test
+        command: ci-build-cache
+        quiet: false
+        stdin: ${{ runner.temp }}/ci.build.cache
   stable:
     name: nixexprs-rust-stable
     runs-on: ubuntu-latest
@@ -130,9 +181,9 @@ jobs:
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  stable-mac:
-    name: nixexprs-rust-stable-mac
-    runs-on: macos-13
+  stable-macos:
+    name: nixexprs-rust-stable-macos
+    runs-on: macos-latest
     steps:
     - id: checkout
       name: git clone
@@ -146,7 +197,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-mac.run.test
+        attrs: ci.job.stable-macos.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -154,7 +205,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-mac.run.test
+        attrs: ci.job.stable-macos.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -165,7 +216,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-mac.run.test
+        attrs: ci.job.stable-macos.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -177,7 +228,7 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.stable-mac.run.test
+        attrs: ci.job.stable-macos.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
@@ -232,9 +283,9 @@ jobs:
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache
-  unstable-mac:
-    name: nixexprs-rust-unstable-mac
-    runs-on: macos-13
+  unstable-macos:
+    name: nixexprs-rust-unstable-macos
+    runs-on: macos-latest
     steps:
     - id: checkout
       name: git clone
@@ -248,7 +299,7 @@ jobs:
       name: nix test dirty
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-mac.run.test
+        attrs: ci.job.unstable-macos.run.test
         command: ci-build-dirty
         quiet: false
         stdout: ${{ runner.temp }}/ci.build.dirty
@@ -256,7 +307,7 @@ jobs:
       name: nix test build
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-mac.run.test
+        attrs: ci.job.unstable-macos.run.test
         command: ci-build-realise
         ignore-exit-code: true
         quiet: false
@@ -267,7 +318,7 @@ jobs:
       name: nix test results
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-mac.run.test
+        attrs: ci.job.unstable-macos.run.test
         command: ci-build-summarise
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.dirty
@@ -279,7 +330,7 @@ jobs:
       name: nix test cache
       uses: arcnmx/ci/actions/nix/run@v0.7
       with:
-        attrs: ci.job.unstable-mac.run.test
+        attrs: ci.job.unstable-macos.run.test
         command: ci-build-cache
         quiet: false
         stdin: ${{ runner.temp }}/ci.build.cache

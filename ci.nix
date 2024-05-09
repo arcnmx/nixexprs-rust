@@ -59,13 +59,18 @@ in {
       { nixpkgs = "23.11"; name = "stable"; }
     ] [ # systems
       { system = "x86_64-linux"; }
-      { system = "x86_64-darwin"; postfix = "-mac"; }
+      { system = "aarch64-darwin"; postfix = "-macos"; }
     ]
   ] ({ nixpkgs, name ? nixpkgs }: { system, postfix ? "" }: nameValuePair "${name}${postfix}" {
     inherit system;
     channels = { inherit nixpkgs; };
-    warn = system == "x86_64-darwin";
+    warn = hasSuffix "-darwin" system;
   })) // {
+    mac-x86 = {
+      system = "x86_64-darwin";
+      channels.nixpkgs = "23.11";
+      warn = true;
+    };
     cross-arm = { channels, pkgs, ... }: {
       system = "x86_64-linux";
       channels.nixpkgs.version = "22.11";
