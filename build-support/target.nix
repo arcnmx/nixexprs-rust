@@ -59,6 +59,8 @@ in {
   rustTargetFor = platform:
     platform.rustc.config
     or platform.platform.rust.target
+    or platform.rust.target
+    or platform.rust.rustcTarget
     or self.targetForConfig.${platform.config}
     or self.targetForSystem.${platform.system}
     or (rust'lib.toRustTarget platform);
@@ -176,6 +178,15 @@ in {
         cat $f >> $out/nix-support/$(basename $f)
       done
     '';
+
+    passthru = let
+      targetPlatforms =
+        [ rustc.rust.target.target ]
+        ++ rustc.targetPlatforms or [];
+    in rustc.passthru or {} // args.passthru or {} // {
+      targetPlatforms = args.passthru.targetPlatforms or targetPlatforms;
+      tests = {};
+    };
   } // builtins.removeAttrs args [ "rustc" "sysroot" ]);
 
   wrapCargo = { stdenvNoCC, makeWrapper }: { rustc, cargo, cargoEnv ? { }, ... }@args: stdenvNoCC.mkDerivation ({
@@ -440,6 +451,10 @@ in {
   , runCommand
   }: { rust ? null, cargo, rustc, rust-src }: let
     rlib = self;
+    toRustTargetSpec = platform:
+      platform.rust.targetSpec
+      or platform.rust.rustcTargetSpec
+      or (rust.toRustTargetSpec platform);
     platform = lib.makeExtensible (self: makeRustPlatform.override {
       inherit (self) callPackage;
       buildPackages = buildPackages // {
@@ -453,7 +468,7 @@ in {
     patchSetupHook = hook: runCommand hook.name rec {
       preferLocalBuild = true;
       inherit hook;
-      rustTargetPlatformSpec = hook.rustHostPlatformSpec or (rust.toRustTargetSpec stdenv.hostPlatform);
+      rustTargetPlatformSpec = hook.rustHostPlatformSpec or (toRustTargetSpec stdenv.hostPlatform);
       targetSubdirectory = hook.targetSubdirectory or targetName;
       targetName = rlib.rustTargetFor stdenv.hostPlatform;
       rustBuildPlatform = stdenv.buildPlatform.rust.rustcTarget or targetName;
