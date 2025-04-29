@@ -183,8 +183,11 @@ in {
       targetPlatforms =
         [ rustc.rust.target.target ]
         ++ rustc.targetPlatforms or [];
+      badTargetPlatforms =
+        rustc.badTargetPlatforms or [];
     in rustc.passthru or {} // args.passthru or {} // {
       targetPlatforms = args.passthru.targetPlatforms or targetPlatforms;
+      badTargetPlatforms = args.passthru.badTargetPlatforms or badTargetPlatforms;
       tests = {};
     };
   } // builtins.removeAttrs args [ "rustc" "sysroot" ]);
