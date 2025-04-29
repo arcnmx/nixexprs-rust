@@ -64,6 +64,8 @@ in {
     or self.targetForConfig.${platform.config}
     or self.targetForSystem.${platform.system}
     or (rust'lib.toRustTarget platform);
+
+  platformForConfig = config: (lib.systems.elaborate { inherit config; }).system;
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   # for gcc/cc-rs, the build support crate
   rustCcEnv = { lib, stdenv, hostPlatform ? stdenv.hostPlatform }@cp: with lib; {
@@ -126,6 +128,21 @@ in {
     #  # TODO: figure out targetOffset?
     #  export RUSTC_SYSROOT=@out@
     #'';
+
+    passthru = let
+      stdTargets = filter (t: t != null) (map (s: s.rust.target.target or null) std);
+      targetPlatforms' =
+        [ rustc.rust.target.target ]
+        ++ map self.platformForConfig stdTargets;
+      targetPlatforms =
+        map self.platformForConfig (unique targetPlatforms')
+        ++ rustc.targetPlatforms or [];
+      badTargetPlatforms =
+        rustc.badTargetPlatforms or [];
+    in {
+      targetPlatforms = unique targetPlatforms;
+      inherit badTargetPlatforms;
+    };
   };
 
   wrapRustc = { stdenvNoCC, makeWrapper }: { rustc, sysroot ? null, ... }@args: stdenvNoCC.mkDerivation ({
@@ -181,7 +198,8 @@ in {
 
     passthru = let
       targetPlatforms =
-        [ rustc.rust.target.target ]
+        [ (self.platformForConfig rustc.rust.target.target) ]
+        ++ sysroot.targetPlatforms or []
         ++ rustc.targetPlatforms or [];
       badTargetPlatforms =
         rustc.badTargetPlatforms or [];
