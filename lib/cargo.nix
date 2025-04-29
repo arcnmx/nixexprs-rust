@@ -124,6 +124,7 @@ in {
       pkg = lock.pkg.${name};
       __toString = self: self.name;
     };
+    mapPackage4 = mapPackage3;
     mapPackage3 = crate: lock: pkg: let
       crateIsPkg = crate: crate.package.name or null == pkg.name;
       checksum = lock.gitOutputHashes.explicit.${p.pname} or pkg.checksum or null;
@@ -227,6 +228,7 @@ in {
           (nameValuePair "${p.name} ${p.version}" p)
         ) lock.packages);
         packages = map ({
+          "4" = mapPackage4;
           "3" = mapPackage3;
           "2" = mapPackage2;
           "1" = mapPackage1;
