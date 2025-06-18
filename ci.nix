@@ -19,7 +19,7 @@
   };
   releasesToTest = {
     # limit the releases tested due to disk space limitations when building/downloading
-    inherit (channels.rust.releases) "1.74.1" "1.76.0";
+    inherit (channels.rust.releases) "1.76.0" "1.84.1";
     inherit (channels.rust) latest;
   };
   mkReleaseTask = channel: {

@@ -23,11 +23,15 @@ self: super: with super.lib; let
     unstable = rself.distChannel {
       # pinned from https://rust-lang.github.io/rustup-components-history/
       channel = "nightly";
-      date = "2024-08-28";
-      sha256 = "sha256-fseRtAFO6RK0BL0JKIAbMmCdOlXkYAynYcNmHPd5byQ=";
+      date = "2025-06-18";
+      sha256 = "sha256-SISBvV1h7Ajhs8g0pNezC1/KGA0hnXnApQ/5//STUbs=";
     };
 
-    latest = rself.releases.${lib.last (lib.attrNames rself.releases)};
+    latest = let
+      isStable = name: ch: let
+        channel = ch.channel or name;
+      in ! lib.hasInfix "-beta" channel;
+    in rself.releases.${lib.last (lib.attrNames (lib.filterAttrs isStable rself.releases))};
 
     releaseHashes = {
       "1.36.0" = "1w2xs3ys2lxhs8l64npb2hmbd4sl0nh22ivlly5xf84q5q2k2djd";
@@ -91,9 +95,25 @@ self: super: with super.lib; let
       "1.79.0" = "sha256-Ngiz76YP4HTY75GGdH2P+APE/DEIx2R/Dn+BwwOyzZU=";
       "1.80.0" = "sha256-6eN/GKzjVSjEhGO9FhWObkRFaE1Jf+uqMSdQnb8lcB4=";
       "1.80.1" = "sha256-3jVIIf5XPnUU1CRaTyAiO0XHVbJl12MSx3eucTXCjtE=";
+      "1.81.0" = "sha256-VZZnlyP69+Y3crrLHQyJirqlHrTtGTsyiSnZB8jEvVo=";
+      "1.82.0" = "sha256-yMuSb5eQPO/bHv+Bcf/US8LVMbf/G/0MSfiPwBhiPpk=";
+      "1.83.0" = "sha256-s1RPtyvDGJaX/BisLT+ifVfuhDT1nZkZ1NcK8sbwELM=";
+      "1.84.0" = "sha256-lMLAupxng4Fd9F1oDw8gx+qA0RuF7ou7xhNU8wgs0PU=";
+      "1.84.1" = "sha256-vMlz0zHduoXtrlu0Kj1jEp71tYFXyymACW8L4jzrzNA=";
+      "1.85.0" = "sha256-AJ6LX/Q/Er9kS15bn9iflkUwcgYqRQxiOIL2ToVAXaU=";
+      "1.85.1" = "sha256-Hn2uaQzRLidAWpfmRwSRdImifGUCAb9HeAqTYFXWeQk=";
+      "1.86.0" = "sha256-X/4ZBHO3iW0fOenQ3foEvscgAPJYl2abspaBThDOukI=";
+      "1.87.0" = "sha256-KUm16pHj+cRedf8vxs/Hd2YWxpOrWZ7UOrwhILdSJBU=";
+      "1.88.0" = {
+        channel = "1.88.0-beta.6";
+        sha256 = "sha256-7iEvESE8ukfsI8HVHJeuo6X/PbmxU7VeKOxBir79AsA=";
+      };
     };
 
-    releases = lib.mapAttrs (channel: sha256: rself.distChannel {
+    releases = lib.mapAttrs (name: ch: let
+      channel = ch.channel or name;
+      sha256 = ch.sha256 or (toString ch);
+    in rself.distChannel {
       inherit channel sha256;
       manifestPath = ./releases + "/channel-rust-${channel}.toml";
     }) rself.releaseHashes;
