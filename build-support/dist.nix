@@ -249,10 +249,11 @@ in {
     packageTargets = pname: targets: mapAttrsToList (target: drv: {
       ${target}.${pname} = drv;
     }) targets;
-    target = foldl
-      (recursiveUpdateUntil (path: l: r: length path > 1))
-      {}
-      targets;
+    mergeAttrsList = lib.attrsets.mergeAttrsList or (foldl (a: b: a // b) {});
+    target = let
+      allPlatforms = genAttrs (concatMap attrNames targets) (_: {});
+      forTarget = platform: target: target.${platform} or {};
+    in mapAttrs (name: _: mergeAttrsList (map (forTarget name) targets)) allPlatforms;
     targetForPlatform = platform: (
       target.${platform}
       or (builtins.trace "WARN: Rust binary distribution does not support ${platform}" {})
