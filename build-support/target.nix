@@ -476,14 +476,15 @@ in {
       platform.rust.targetSpec
       or platform.rust.rustcTargetSpec
       or (rust.toRustTargetSpec platform);
-    platform = lib.makeExtensible (self: makeRustPlatform.override {
-      inherit (self) callPackage;
+    platform = lib.makeExtensible (self: makeRustPlatform.override (old: {
+      ${if old ? callPackage then "callPackage" else null} = self.callPackage;
+      ${if old ? callPackages then "callPackages" else null} = self.callPackages or self.callPackage.callPackages;
       buildPackages = buildPackages // {
         callPackage = buildPackages.newScope {
           inherit cargo rustc;
         };
       };
-    } {
+    }) {
       inherit cargo rustc stdenv;
     });
     patchSetupHook = hook: runCommand hook.name rec {

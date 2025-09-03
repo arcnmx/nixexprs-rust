@@ -170,12 +170,19 @@
       } // cself.rustPlatform.rust;
       inherit (cself.rustPlatform) buildRustPackage rustcSrc;
 
-      callPackage = pkgs.newScope {
-        rustChannel = cself;
-        inherit (cself)
-          rust rustPlatform buildRustPackage buildRustCrate
-          cargo rustc
-        ;
+      callPackage = let
+        scopePackages = {
+          rustChannel = cself;
+          inherit (cself)
+            rust rustPlatform buildRustPackage buildRustCrate
+            cargo rustc
+          ;
+        };
+        #scope = lib.makeScope pkgs.newScope (_: scopePackages);
+      in {
+        __functor = _: pkgs.newScope scopePackages;
+        inherit scopePackages;
+        callPackages = lib.callPackagesWith (pkgs // scopePackages);
       };
 
       # buildPackages and targetPackages variants
