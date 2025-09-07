@@ -131,7 +131,14 @@
         rls = cself.rls-unwrapped;
         inherit (cself) rls-sysroot rustc;
       };
-      rust-analyzer-unwrapped = cself.tools.rust-analyzer or pkgs.rust-analyzer-unwrapped;
+      rust-analyzer-unwrapped-unstable = pkgs.rust-analyzer-unwrapped.overrideAttrs (attrs: {
+        RUSTC_BOOTSTRAP = true;
+        buildFeatures = attrs.buildFeatures ++ lib.optional (lib.elem "rust-analyzer-proc-macro-srv" attrs.cargoBuildFlags) "sysroot-abi";
+      });
+      rust-analyzer-unwrapped-nixpkgs =
+        if channel == "nightly" then cself.rust-analyzer-unwrapped-unstable
+        else pkgs.rust-analyzer-unwrapped;
+      rust-analyzer-unwrapped = cself.tools.rust-analyzer or cself.rust-analyzer-unwrapped-nixpkgs or pkgs.rust-analyzer-unwrapped;
       rust-analyzer = rlib.wrapRustAnalyzer {
         inherit (cself) rust-src rust-analyzer-unwrapped;
         cargoEnv = cself.cargo-cc // cself.rust-cc;
