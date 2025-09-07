@@ -14,10 +14,14 @@
   new = {
     rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
   , ...
-  }@args: (buildRustPackage' ({
+  }@args: let
+    buildTargetName =
+      if lib.hasSuffix ".json" rustTarget then lib.removeSuffix ".json" (builtins.baseNameOf rustTarget)
+      else null;
+  in (buildRustPackage' ({
   } // builtins.removeAttrs args [ "rustTarget" ])).overrideAttrs (old: {
     ${if args ? rustTarget then "CARGO_BUILD_TARGET" else null} = rustTarget;
-    ${if lib.hasSuffix ".json" rustTarget then "CARGO_BUILD_TARGET_NAME" else null} = lib.removeSuffix ".json" (builtins.baseNameOf rustTarget);
+    ${lib.mapNullable (_: "CARGO_BUILD_TARGET_NAME") buildTargetName} = buildTargetName;
     ${if args ? RUSTFLAGS then "RUSTFLAGS" else null} = args.RUSTFLAGS;
   });
 old = {
