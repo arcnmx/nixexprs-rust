@@ -66,6 +66,10 @@ in {
     or (rust'lib.toRustTarget platform);
 
   platformForConfig = config: (lib.systems.elaborate { inherit config; }).system;
+
+  cargoFetcherName =
+    if lib.versionOlder lib.version "25.05" then "fetchCargoTarball"
+    else "fetchCargoVendor";
 } // lib.mapAttrs (_: lib.flip pkgs.callPackage { }) {
   # for gcc/cc-rs, the build support crate
   rustCcEnv = { lib, stdenv, hostPlatform ? stdenv.hostPlatform }@cp: with lib; {
@@ -518,7 +522,7 @@ in {
       inherit rust;
       inherit (self) rustc cargo;
       inherit (self)
-        buildRustPackage fetchCargoTarball importCargoLock
+        buildRustPackage fetchCargoTarball fetchCargoVendor importCargoLock
         cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
         maturinBuildHook bindgenHook
         rustcSrc rustLibSrc
@@ -531,11 +535,11 @@ in {
       buildRustPackage = super.buildRustPackage.override (buildOverrideArgs // {
         inherit stdenv;
         inherit (self)
-          fetchCargoTarball
           cargoBuildHook cargoCheckHook cargoInstallHook
           cargoSetupHook
         ;
         ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
+        ${rlib.cargoFetcherName} = self.${rlib.cargoFetcherName};
       });
       inherit (self.rust) rustc cargo;
       inherit rust;

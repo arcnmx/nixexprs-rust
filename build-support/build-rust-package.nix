@@ -5,9 +5,9 @@
 , cargo, windows ? null
 , rustc
 }: let
-  buildRustPackage' = buildRustPackage.override {
-    callPackage = _: _: throw "no sysroot for you";
-  };
+  buildRustPackage' = buildRustPackage.override (old: {
+    ${if old ? callPackage then "callPackage" else null} = _: _: throw "no sysroot for you";
+  });
   fn = if builtins.pathExists (path + "/pkgs/build-support/rust/hooks/cargo-build-hook.sh")
     then new
     else old;
@@ -38,13 +38,29 @@ old = {
 , buildType ? "release"
 , rustTarget ? rustChannel.lib.rustTargetFor stdenv.hostPlatform
 , cargoVendorDir ? null
+# fetchCargoVendor
+, cargoRoot ? null
+, preUnpack ? null
+, postUnpack ? null
+, depsExtraArgs ? {}
+, cargoDepsName ? name
+, cargoHash ? lib.fakeHash
 , ... }@args: let
-  cargoDeps = if cargoVendorDir == null
-    then rustPlatform.fetchCargoTarball {
-      inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
-      patches = cargoPatches;
-      sha256 = cargoSha256;
-    } else null;
+  cargoTarball = rustPlatform.fetchCargoTarball {
+    inherit name src srcs sourceRoot unpackPhase cargoUpdateHook;
+    patches = cargoPatches;
+    sha256 = cargoSha256;
+  };
+  cargoVendor = rustPlatform.fetchCargoVendor ({
+    inherit src srcs sourceRoot cargoRoot preUnpack unpackPhase postUnpack;
+    name = cargoDepsName;
+    patches = cargoPatches;
+    hash = args.cargoHash;
+  } // depsExtraArgs);
+  cargoDeps = if cargoVendorDir == null then (
+    if rustChannel.lib.cargoFetcher == "fetchCargoTarball" then cargoTarball
+    else cargoVendor
+  ) else null;
   setupVendorDir = if cargoVendorDir == null
     then ''
       unpackFile $cargoDeps
