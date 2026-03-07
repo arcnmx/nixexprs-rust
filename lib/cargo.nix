@@ -61,7 +61,7 @@ in {
       git = if fetchgit != null then fetchgit {
         url = source.srcInfo.url;
         rev = source.git.hash;
-        ${if pkg.checksum.hash or null != null then "sha256" else null} = pkg.checksum.hash;
+        ${if pkg.checksum.hash or null != null then "sha256" else null} = "${pkg.checksum.hash}";
         ${if pkg.checksum ? submodules then "fetchSubmodules" else null} = pkg.checksum.submodules;
         ${if pkg.checksum ? shallow then "deepClone" else null} = !pkg.checksum.shallow;
         ${if source.git ? branch || hasPrefix "refs/heads/" source.git.ref or "" then "branchName" else null} =
@@ -187,7 +187,8 @@ in {
   , self ? null
   , sourceInfo ? self.sourceInfo or null
   , globalIgnore ? [ "/.cargo/" "/.github/" ".direnv" ".envrc" "*.nix" "flake.lock" ]
-  , cargoLock ? null
+  , cargoLock ? cargoLock'
+  , cargoLock' ? null
   , outputHashes ? { }
   , name ? "crate"
   , version ? "0.0.0"
@@ -203,7 +204,7 @@ in {
     globalGitignoreString = concatStringsSep "\n" globalIgnore;
     cargoLockArgs =
       if cargoLock != null then cargoLock
-      else if parent != null then parent.cargoLock
+      else if parent != null then parent.cargoLock' or parent.cargoLock
       else { lockFile = paths.root + "/Cargo.lock"; };
     cargoToml =
       if args.cargoToml or null != null
@@ -246,7 +247,10 @@ in {
         };
         outputHashes = mapAttrs (_: mapChecksum) (lock.gitOutputHashes.missing // cargoLockArgs.outputHashes or lock.gitOutputHashes.default // lock.gitOutputHashes.explicit);
       });
-      cargoLock = cargoLockArgs // {
+      cargoLock = crate.cargoLock' // {
+        outputHashes = mapAttrs (_: toString) crate.cargoLock'.outputHashes;
+      };
+      cargoLock' = cargoLockArgs // {
         inherit (crate.lock) outputHashes;
       };
       cargoVendorDir = { importCargoLock }: importCargoLock crate.cargoLock;
