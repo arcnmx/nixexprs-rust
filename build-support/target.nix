@@ -24,7 +24,7 @@ in {
   , rustcFlags ?
     if triple == "i686-pc-windows-gnu" then [ "-C" "panic=abort" ] else [] # TODO: compile gcc without sjlj exceptions so this doesn't happen? or just compile libstd from source tbh, it shouldn't be that bad?
   }: {
-    inherit triple stdenv hostPlatform ar cc cxx linker linkerFlavor rustcFlags;
+    inherit triple stdenv stdenvCc hostPlatform ar cc cxx linker linkerFlavor rustcFlags;
   });
 
   targetForSystem = {
@@ -474,8 +474,10 @@ in {
   , stdenv, path, lib
   , newScope, buildPackages
   , runCommand
+  , pkgs
+  , rustChannel ? {}
   }: { rust ? null, cargo, rustc, rust-src }: let
-    rlib = self;
+    rlib = rustChannel.context.rlib or self;
     toRustTargetSpec = platform:
       platform.rust.targetSpec
       or platform.rust.rustcTargetSpec
@@ -483,6 +485,7 @@ in {
     platform = lib.makeExtensible (self: makeRustPlatform.override (old: {
       ${if old ? callPackage then "callPackage" else null} = self.callPackage;
       ${if old ? callPackages then "callPackages" else null} = self.callPackages or self.callPackage.callPackages;
+      ${if old ? cargo-auditable then "cargo-auditable" else null} = self.cargo-auditable;
       buildPackages = buildPackages // {
         callPackage = buildPackages.newScope {
           inherit cargo rustc;
@@ -504,11 +507,15 @@ in {
       sed -i \
         -e "s/\"CARGO_BUILD_TARGET=$rustBuildPlatform\"//" \
         -e "s/--target $rustTargetPlatformSpec//" \
+        -e "s/\"--target\" \"$rustTargetPlatformSpec\"//" \
+        -e "s/\"--target\" \"$rustBuildPlatform\"//" \
         -e "s|target/$rustTargetPlatformSpec/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetName}}/|" \
         -e "s|target/$targetSubdirectory/|target/\\\''${CARGO_BUILD_TARGET_NAME-\\\''${CARGO_BUILD_TARGET-$targetSubdirectory}}/|" \
         $out/nix-support/setup-hook
     '';
   in platform.extend (self: super: let
+    newScope = super.newScope or pkgs.newScope;
+    hasBuildChannel = self ? rustBuildPlatform;
     rustDeprecated = ! (lib.functionArgs super.buildRustPackage.override) ? "rust";
     buildOverrideArgs = if rustDeprecated then {
       inherit rustc cargo;
@@ -516,30 +523,64 @@ in {
       inherit rust;
     };
   in {
-    inherit rustc cargo;
-    callPackage = newScope {
-      rustPlatform = self;
-      inherit rust;
-      inherit (self) rustc cargo;
-      inherit (self)
-        buildRustPackage fetchCargoTarball fetchCargoVendor importCargoLock
-        cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
-        maturinBuildHook bindgenHook
-        rustcSrc rustLibSrc
-      ;
-      ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
+    inherit (self.rust) rustc cargo;
+    rust = super.rust or {} // {
+      inherit rustc cargo;
+    };
+    cargo-auditable = cargo // {
+      meta = cargo.meta or {} // {
+        broken = true;
+      };
+    };
+    ${if rustChannel != {} then "rustChannel" else null} = rustChannel;
+    ${if rustChannel ? buildChannel then "rustBuildChannel" else null} = rustChannel.buildChannel;
+    ${if rustChannel ? buildChannel.rustPlatform then "rustBuildPlatform" else null} = rustChannel.buildChannel.rustPlatform;
+    callPackage = let
+      scopePackages = {
+        rustPlatform = self;
+        inherit rust;
+        inherit (self.rust) rustc cargo;
+        inherit (self)
+          buildRustPackage fetchCargoTarball fetchCargoVendor importCargoLock
+          rustcSrc rustLibSrc
+          cargo-auditable
+        ;
+      } // lib.optionalAttrs hasBuildChannel {
+        inherit (self) rustChannel rustBuildChannel rustBuildPlatform;
+        inherit (self.rustBuildChannel) rustfmt rust-bindgen-unwrapped rust-bindgen;
+        inherit (self.rustBuildPlatform)
+          cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
+          cargoNextestHook maturinBuildHook bindgenHook
+        ;
+        rustPlatform = self // {
+          inherit (self.rustBuildPlatform)
+            cargoBuildHook cargoCheckHook cargoInstallHook cargoSetupHook
+            cargoNextestHook maturinBuildHook bindgenHook
+          ;
+        };
+      };
+    in {
+      inherit scopePackages;
+      newScope = pset: newScope (scopePackages // pset);
+      callPackages = lib.callPackagesWith (pkgs // scopePackages);
+      __functor = callPackage: callPackage.newScope callPackage.scopePackages;
     };
     rustcSrc = rust-src;
+    # TODO? rustcSrc = self.rustBuildChannel.rust-src or super.rustcSrc;
+    rustLibSrc = self.rustBuildChannel.rust-src or super.rustLibSrc;
     buildRustPackage = rlib.buildRustPackage.override {
       rustPlatform = self;
-      buildRustPackage = super.buildRustPackage.override (buildOverrideArgs // {
+      buildRustPackage = let
+        rustBuildPlatform = self.callPackage.scopePackages or self.rustBuildPlatform;
+        rustPlatform = self.callPackage.scopePackages or self;
+      in super.buildRustPackage.override (buildOverrideArgs // {
         inherit stdenv;
-        inherit (self)
+        inherit (rustBuildPlatform)
           cargoBuildHook cargoCheckHook cargoInstallHook
           cargoSetupHook
         ;
-        ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = self.cargoNextestHook;
-        ${rlib.cargoFetcherName} = self.${rlib.cargoFetcherName};
+        ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = rustBuildPlatform.cargoNextestHook;
+        ${rlib.cargoFetcherName} = rustPlatform.${rlib.cargoFetcherName};
       });
       inherit (self.rust) rustc cargo;
       inherit rust;
@@ -551,6 +592,9 @@ in {
     ${if lib.versionAtLeast lib.version "23.05" then "cargoNextestHook" else null} = patchSetupHook super.cargoNextestHook;
     cargoSetupHook = patchSetupHook super.cargoSetupHook;
     maturinBuildHook = patchSetupHook super.maturinBuildHook;
+    bindgenHook = super.bindgenHook.override {
+      ${if hasBuildChannel then "clang" else null} = self.rustChannel.rust-bindgen-unwrapped.clang;
+    };
   });
 
   makeRust = { newScope, rust, buildPackages }: {

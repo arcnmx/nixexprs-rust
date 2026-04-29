@@ -44,12 +44,15 @@
       # TODO: use https://github.com/rust-lang/rustup-components-history/blob/master/README.md#the-web-part to decide what nightly to download if certain features are required?
       targetRustLld = false; # TODO: figure out which platforms rust currently uses rust-lld by default? Also this should just be part of the target spec or something, it needs to apply to host/build as well!
       # TODO: offer some way to use lld as the linker without having stdenv link the entire world with it?
-      hostTarget = rlib.rustTargetEnvironment { inherit stdenv hostPlatform; };
-      buildTarget = rlib.rustTargetEnvironment { inherit (buildPackages) stdenv hostPlatform; };
-      targetTarget = rlib.rustTargetEnvironment (
-        { inherit (targetPackages) stdenv hostPlatform; }
-        // lib.optionalAttrs (cself.targetRustLld) { linker = null; }
-      );
+      hostTarget = rlib.rustTargetEnvironment { inherit stdenv; inherit (stdenv) hostPlatform; };
+      buildTarget = rlib.rustTargetEnvironment { inherit (buildPackages) stdenv; inherit (buildPackages.stdenv) hostPlatform; };
+      targetTarget = let
+        avail = targetPackages.stdenv.cc.meta.available or (targetPackages.stdenv or {} ? hostPlatform);
+        targetEnv = rlib.rustTargetEnvironment (
+          { inherit (targetPackages) stdenv; hostPlatform = targetPackages.stdenv.hostPlatform or stdenv.targetPlatform; }
+          // lib.optionalAttrs (cself.targetRustLld) { linker = null; }
+        );
+      in if avail then targetEnv else null;
       available = cself.manifest.targets ? ${cself.hostTarget.triple};
       toolsAvailable = cself.available && isAvailable cself.tools "rustc";
       tools = cself.manifest.targetForPlatform cself.hostTarget.triple;
@@ -59,11 +62,11 @@
       rust-cc =
         rlib.rustCcEnv { target = cself.buildTarget; }
         // rlib.rustCcEnv { target = cself.hostTarget; }
-        // rlib.rustCcEnv { target = cself.targetTarget; };
+        // lib.optionalAttrs (cself.targetTarget != null) (rlib.rustCcEnv { target = cself.targetTarget; });
       cargo-cc =
         rlib.cargoEnv { target = cself.buildTarget; }
         // rlib.cargoEnv { target = cself.hostTarget; }
-        // rlib.cargoEnv { target = cself.targetTarget; default = true; };
+        // lib.optionalAttrs (cself.targetTarget != null) (rlib.cargoEnv { target = cself.targetTarget; default = true; });
 
       # rust
       sysroot-std = lib.unique [ cself.hostTools.rust-std cself.buildTools.rust-std cself.targetTools.rust-std ];
@@ -122,6 +125,39 @@
       };
       rustfmt = cself.tools.rustfmt or (if isAvailable cself.tools "rustfmt-preview" then cself.tools.rustfmt-preview else pkgs.rustfmt);
       clippy = cself.tools.clippy or (if isAvailable cself.tools "clippy-preview" then cself.tools.clippy-preview else pkgs.clippy);
+      rust-bindgen-unwrapped = let
+        rustfmt = cself.rustfmt // {
+          override = _: rustfmt;
+        };
+        clang = if cself.targetTarget.stdenvCc.isClang or false then cself.targetTarget.stdenvCc
+          else if cself.targetChannel.context.pkgs.clangStdenv.cc.meta.available or false then cself.targetChannel.context.pkgs.clangStdenv.cc
+          else if cself.buildChannel.context.pkgs.clang.meta.available then cself.buildChannel.context.pkgs.clang
+          else pkgs.buildPackages.clang or pkgs.clang;
+        rust-bindgen-unwrapped = pkgs.rust-bindgen-unwrapped.override {
+          inherit (cself) rustPlatform;
+          inherit clang rustfmt;
+        };
+      in (rust-bindgen-unwrapped.overrideAttrs (old: {
+        doCheck = false;
+        buildInputs = old.buildInputs or [] ++ [ clang.cc ];
+      })).overrideAttrs (old: lib.optionalAttrs (!old.doCheck) {
+        ${if old ? RUSTFMT then "RUSTFMT" else null} = null;
+        ${if old ? env.RUSTFMT then "env" else null} = old.env or {} // {
+          RUSTFMT = "cat";
+        };
+        passthru = old.passthru or {} // {
+          inherit clang;
+          RUSTFMT = lib.getExe rustfmt;
+        };
+      });
+      rust-bindgen = let
+        rust-bindgen = pkgs.rust-bindgen.override {
+          inherit (cself) rust-bindgen-unwrapped;
+        };
+      in rust-bindgen.overrideAttrs (old: {
+        propagatedBuildInputs = old.propagatedBuildInputs or []
+          ++ [ cself.rustfmt ];
+      });
       rls-sysroot = rlib.wrapRlsSysroot {
         inherit (cself.tools) rust-src rust-analysis;
         inherit (cself) rust-sysroot;
@@ -155,7 +191,8 @@
         inherit (cself.buildTools) rustc;
       };
       rustPlatform = builtins.removeAttrs cself.buildChannel ["rustPlatform"] // rlib.makeRustPlatform.override {
-        inherit stdenv;
+        inherit (cself.context) pkgs buildPackages stdenv;
+        rustChannel = cself;
       } {
         inherit (cself) rust;
         inherit (cself.buildChannel) cargo rustc rust-src;
@@ -187,18 +224,33 @@
         };
         #scope = lib.makeScope pkgs.newScope (_: scopePackages);
       in {
-        __functor = _: pkgs.newScope scopePackages;
+        __functor = callPackage: callPackage.newScope callPackage.scopePackages;
         inherit scopePackages;
+        newScope = pset: pkgs.newScope (scopePackages // pset);
         callPackages = lib.callPackagesWith (pkgs // scopePackages);
       };
 
       # buildPackages and targetPackages variants
-      buildChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (buildPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages buildRustCrate;
+      buildChannel = let
+        buildOverlays = lib.singleton (self: super: {
+          targetChannel = cself;
+          targetTarget = cself.hostTarget;
+          targetTools = cself.hostTools;
+        }) ++ channelOverlays;
+      in makeExtensibleChannel buildOverlays (channelBuilder {
+        inherit (buildPackages) stdenv pkgs buildPackages targetPackages buildRustCrate;
+        inherit (buildPackages.stdenv) hostPlatform targetPlatform;
         rlib = rlib.buildLib;
       });
-      targetChannel = makeExtensibleChannel channelOverlays (channelBuilder {
-        inherit (targetPackages) stdenv hostPlatform targetPlatform pkgs buildPackages targetPackages buildRustCrate;
+      targetChannel = let
+        targetOverlays = lib.singleton (self: super: {
+          buildChannel = cself;
+          buildTarget = cself.hostTarget;
+          buildTools = cself.hostTools;
+        }) ++ channelOverlays;
+      in makeExtensibleChannel targetOverlays (channelBuilder {
+        inherit (targetPackages) stdenv pkgs buildPackages targetPackages buildRustCrate;
+        inherit (targetPackages.stdenv) hostPlatform targetPlatform;
         rlib = rlib.targetLib;
       });
     };
