@@ -9,7 +9,7 @@ in {
   rustTargetEnvironment = lib.makeOverridable ({
     pkgs ? null
   , stdenv ? pkgs.stdenv
-  , hostPlatform ? pkgs.hostPlatform or stdenv.hostPlatform
+  , hostPlatform ? pkgs.stdenv.hostPlatform or pkgs.hostPlatform or stdenv.hostPlatform
   , triple ? self.rustTargetFor hostPlatform
   , stdenvCc ? stdenv.cc
   , ar ? "${stdenvCc.bintools.bintools}/bin/${stdenvCc.targetPrefix}ar"

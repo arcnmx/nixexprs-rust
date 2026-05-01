@@ -1,10 +1,12 @@
 { self, lib, pkgs, ... }: {
   distChannel = pkgs.callPackage ({
-    stdenv, hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform, pkgs, buildPackages, targetPackages, buildRustCrate
+    stdenv, /*hostPlatform ? stdenv.hostPlatform, targetPlatform ? stdenv.targetPlatform,*/ pkgs, buildPackages, targetPackages, buildRustCrate
   , sha256 ? null, rustToolchain ? null, channel ? null /* "stable"? */, date ? null, staging ? false, manifestPath ? null
   , rustcDev ? false # include "rustc-dev" component in sysroot
   , channelOverlays ? []
   }@args: let
+    hostPlatform = stdenv.hostPlatform or pkgs.hostPlatform;
+    targetPlatform = stdenv.targetPlatform or pkgs.targetPlatform;
     broken = name: pkgs.runCommand name {
       version = "0";
       meta.broken = true;

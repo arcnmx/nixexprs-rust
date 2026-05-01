@@ -57,12 +57,12 @@ in {
     nix-fetchurl = builtins.tryEval (import <nix/fetchurl.nix>);
   in if nix-fetchurl.success then nix-fetchurl.value else fetchurl;
 
-  getPackageTarget = { stdenvNoCC, hostPlatform, stdenv, zlib, lib, autoPatchelfHook }: { target, buildInputs }: with lib; let
+  getPackageTarget = { stdenvNoCC, stdenv, zlib, lib, autoPatchelfHook }: { target, buildInputs }: with lib; let
     extensions = filterAttrs (_: v: v.embedded && v.available) target.extensions;
     hasOut = target.components == { };
     outputs = [ "out" ] ++ (mapAttrsToList (_: { name, ... }: name) (target.components // extensions));
     hasCargo = target.name == "cargo" || any (o: o == "cargo") outputs;
-    mkDerivation = (if hostPlatform.isLinux then stdenv else stdenvNoCC).mkDerivation;
+    mkDerivation = (if stdenv.hostPlatform.isLinux then stdenv else stdenvNoCC).mkDerivation;
   in mkDerivation {
     inherit (target) version;
     pname = target.name;
@@ -84,7 +84,7 @@ in {
     };
 
     preferLocalBuild = true;
-    nativeBuildInputs = optionals (hostPlatform.isLinux && !hostPlatform.isMusl) [ autoPatchelfHook ];
+    nativeBuildInputs = optionals (stdenv.hostPlatform.isLinux && !stdenv.hostPlatform.isMusl) [ autoPatchelfHook ];
     buildInputs = buildInputs ++ optionals (
       target.name == "rustc" ||
       target.name == "cargo" ||
