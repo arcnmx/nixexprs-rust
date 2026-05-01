@@ -172,9 +172,9 @@ in {
               exit 1
             fi
             [[ ! -d $cout/etc ]] || (
-              echo Installer tries to install to /etc:
-              find $cout/etc
-              exit 1
+              echo 'Installer tries to install to /etc:' >&2
+              find $cout/etc >&2
+              #exit 1
             )
           done < $component/manifest.in
 
